@@ -23,21 +23,25 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline uint64_t split_data_buffer_size(KernelGlobals *kg, size_t num_elements)
+ccl_device_inline uint64_t split_data_buffer_size(KernelGlobals *kg, size_t num_elements, ccl_global uint64_t *offsets)
 {
   (void)kg; /* Unused on CPU. */
 
   uint64_t size = 0;
-#define SPLIT_DATA_ENTRY(type, name, num) +align_up(num_elements *num * sizeof(type), 16)
-  size = size SPLIT_DATA_ENTRIES;
+#define SPLIT_DATA_ENTRY(type, name, num) \
+  *(offsets++) = size; \
+  size += align_up(num_elements * num * sizeof(type), 16);
+  SPLIT_DATA_ENTRIES
 #undef SPLIT_DATA_ENTRY
 
   uint64_t closure_size = sizeof(ShaderClosure) * (kernel_data.integrator.max_closures - 1);
 
 #ifdef __BRANCHED_PATH__
+  *(offsets++) = size;
   size += align_up(num_elements * (sizeof(ShaderData) + closure_size), 16);
 #endif
 
+  *(offsets++) = size;
   size += align_up(num_elements * (sizeof(ShaderData) + closure_size), 16);
 
   return size;

@@ -21,9 +21,9 @@ __kernel void kernel_ocl_path_trace_state_buffer_size(
         ccl_global char *kg,
         ccl_constant KernelData *data,
         uint num_threads,
-        ccl_global uint64_t *size)
+        ccl_global uint64_t *size,
+        ccl_global uint64_t *offsets)
 {
 	((KernelGlobals*)kg)->data = data;
-	*size = split_data_buffer_size((KernelGlobals*)kg, num_threads);
+	*size = split_data_buffer_size((KernelGlobals*)kg, num_threads, offsets);
 }
-

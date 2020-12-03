@@ -95,39 +95,7 @@ DeviceSplitKernel::~DeviceSplitKernel()
 
 bool DeviceSplitKernel::load_kernels(const DeviceRequestedFeatures &requested_features)
 {
-#define LOAD_KERNEL(name) \
-  kernel_##name = get_split_kernel_function(#name, requested_features); \
-  if (!kernel_##name) { \
-    device->set_error(string("Split kernel error: failed to load kernel_") + #name); \
-    return false; \
-  }
-
-  LOAD_KERNEL(path_init);
-  LOAD_KERNEL(scene_intersect);
-  LOAD_KERNEL(lamp_emission);
-  if (requested_features.use_volume) {
-    LOAD_KERNEL(do_volume);
-  }
-  LOAD_KERNEL(queue_enqueue);
-  LOAD_KERNEL(indirect_background);
-  LOAD_KERNEL(shader_setup);
-  LOAD_KERNEL(shader_sort);
-  LOAD_KERNEL(shader_eval);
-  LOAD_KERNEL(holdout_emission_blurring_pathtermination_ao);
-  LOAD_KERNEL(subsurface_scatter);
-  LOAD_KERNEL(direct_lighting);
-  LOAD_KERNEL(shadow_blocked_ao);
-  LOAD_KERNEL(shadow_blocked_dl);
-  LOAD_KERNEL(enqueue_inactive);
-  LOAD_KERNEL(next_iteration_setup);
-  LOAD_KERNEL(indirect_subsurface);
-  LOAD_KERNEL(buffer_update);
-  LOAD_KERNEL(adaptive_stopping);
-  LOAD_KERNEL(adaptive_filter_x);
-  LOAD_KERNEL(adaptive_filter_y);
-  LOAD_KERNEL(adaptive_adjust_samples);
-
-#undef LOAD_KERNEL
+  this->requested_features = requested_features;
 
   /* Re-initialiaze kernel-dependent data when kernels change. */
   kernel_data_initialized = false;
@@ -139,7 +107,8 @@ size_t DeviceSplitKernel::max_elements_for_max_buffer_size(device_memory &kg,
                                                            device_memory &data,
                                                            uint64_t max_buffer_size)
 {
-  uint64_t size_per_element = state_buffer_size(kg, data, 1024) / 1024;
+  vector<uint64_t> offsets;
+  uint64_t size_per_element = state_buffer_size(kg, data, 1024, offsets) / 1024;
   VLOG(1) << "Split state element size: " << string_human_readable_number(size_per_element)
           << " bytes. (" << string_human_readable_size(size_per_element) << ").";
   return max_buffer_size / size_per_element;
@@ -186,8 +155,46 @@ bool DeviceSplitKernel::path_trace(DeviceTask &task,
     work_pool_wgs.alloc_to_device(max_work_groups);
     queue_index.alloc_to_device(NUM_QUEUES);
     use_queues_flag.alloc_to_device(1);
-    split_data.alloc_to_device(state_buffer_size(kgbuffer, kernel_data, num_global_elements));
+    vector<uint64_t> offsets;
+    split_data.alloc_to_device(
+        state_buffer_size(kgbuffer, kernel_data, num_global_elements, offsets));
     ray_state.alloc(num_global_elements);
+
+    KernelData *data = (KernelData *)kernel_data.host_pointer;
+
+#define LOAD_KERNEL(name) \
+  kernel_##name = get_split_kernel_function(#name, requested_features, offsets); \
+  if (!kernel_##name) { \
+    device->set_error(string("Split kernel error: failed to load kernel_") + #name); \
+    return false; \
+  }
+
+    LOAD_KERNEL(path_init);
+    LOAD_KERNEL(scene_intersect);
+    LOAD_KERNEL(lamp_emission);
+    if (requested_features.use_volume) {
+      LOAD_KERNEL(do_volume);
+    }
+    LOAD_KERNEL(queue_enqueue);
+    LOAD_KERNEL(indirect_background);
+    LOAD_KERNEL(shader_setup);
+    LOAD_KERNEL(shader_sort);
+    LOAD_KERNEL(shader_eval);
+    LOAD_KERNEL(holdout_emission_blurring_pathtermination_ao);
+    LOAD_KERNEL(subsurface_scatter);
+    LOAD_KERNEL(direct_lighting);
+    LOAD_KERNEL(shadow_blocked_ao);
+    LOAD_KERNEL(shadow_blocked_dl);
+    LOAD_KERNEL(enqueue_inactive);
+    LOAD_KERNEL(next_iteration_setup);
+    LOAD_KERNEL(indirect_subsurface);
+    LOAD_KERNEL(buffer_update);
+    LOAD_KERNEL(adaptive_stopping);
+    LOAD_KERNEL(adaptive_filter_x);
+    LOAD_KERNEL(adaptive_filter_y);
+    LOAD_KERNEL(adaptive_adjust_samples);
+
+#undef LOAD_KERNEL
   }
 
   /* Number of elements in the global state buffer */

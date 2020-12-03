@@ -380,6 +380,8 @@ class OpenCLSplitKernelFunction : public SplitKernelFunction {
       return false;
     }
 
+    device->ciErr = clFinish(device->cqCommandQueue);
+
     return true;
   }
 };
@@ -394,19 +396,61 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
   }
 
   virtual SplitKernelFunction *get_split_kernel_function(
-      const string &kernel_name, const DeviceRequestedFeatures &requested_features)
+      const string &kernel_name,
+      const DeviceRequestedFeatures &requested_features,
+      const vector<uint64_t> &offsets)
   {
     OpenCLSplitKernelFunction *kernel = new OpenCLSplitKernelFunction(device, cached_memory);
 
     const string program_name = device->get_opencl_program_name(kernel_name);
+    string build_options = device->get_build_options(
+        requested_features, program_name, device->use_preview_kernels);
+
+    size_t index = 0;
+
+#  define SPLIT_DATA_ENTRY(type, name, num) \
+    build_options += string(" -D" #name "_OFFSET=") + to_string(offsets[index++]) + " ";
+
+    SPLIT_DATA_ENTRY(ccl_global float3, throughput, 1)
+    SPLIT_DATA_ENTRY(PathRadiance, path_radiance, 1)
+    SPLIT_DATA_ENTRY(ccl_global Ray, ray, 1)
+    SPLIT_DATA_ENTRY(ccl_global PathState, path_state, 1)
+    SPLIT_DATA_ENTRY(ccl_global Intersection, isect, 1)
+    SPLIT_DATA_ENTRY(ccl_global BsdfEval, bsdf_eval, 1)
+    SPLIT_DATA_ENTRY(ccl_global int, is_lamp, 1)
+    SPLIT_DATA_ENTRY(ccl_global Ray, light_ray, 1)
+    SPLIT_DATA_ENTRY(
+        ccl_global int, queue_data, (NUM_QUEUES * 2)) /* TODO(mai): this is too large? */
+    SPLIT_DATA_ENTRY(ccl_global uint, buffer_offset, 1)
+    SPLIT_DATA_ENTRY(ShaderDataTinyStorage, sd_DL_shadow, 1)
+    if (requested_features.use_subsurface) {
+      SPLIT_DATA_SUBSURFACE_ENTRIES
+    }
+    if (requested_features.use_volume) {
+      SPLIT_DATA_VOLUME_ENTRIES
+    }
+    if (requested_features.use_integrator_branched) {
+      SPLIT_DATA_BRANCHED_ENTRIES
+    }
+    SPLIT_DATA_ENTRY(ShaderData, _sd, 0)
+#  undef SPLIT_DATA_ENTRY
+
+    if (requested_features.use_integrator_branched) {
+      build_options += string(" -D_branched_state_sd_OFFSET=") + to_string(offsets[index++]) + " ";
+    }
+
+    build_options += string(" -D_sd_OFFSET=") + to_string(offsets[index++]) + " ";
+
     kernel->program = OpenCLDevice::OpenCLProgram(
         device,
         program_name,
         device->get_opencl_program_filename(kernel_name),
-        device->get_build_options(requested_features, program_name, device->use_preview_kernels));
+        build_options);
 
     kernel->program.add_kernel(ustring("path_trace_" + kernel_name));
-    kernel->program.load();
+    if (!kernel->program.load()) {
+      kernel->program.compile();
+    }
 
     if (!kernel->program.is_loaded()) {
       delete kernel;
@@ -416,17 +460,31 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
     return kernel;
   }
 
-  virtual uint64_t state_buffer_size(device_memory &kg, device_memory &data, size_t num_threads)
+  virtual uint64_t state_buffer_size(device_memory &kg,
+                                   device_memory &data,
+                                   size_t num_threads,
+                                   vector<uint64_t> &offsets)
   {
     device_vector<uint64_t> size_buffer(device, "size_buffer", MEM_READ_WRITE);
+    device_vector<uint64_t> offsets_buffer(device, "offsets_buffer", MEM_READ_WRITE);
+
+    uint64_t split_data_entries_num = 0;
+#  define SPLIT_DATA_ENTRY(type, name, num) ++split_data_entries_num;
+
+    SPLIT_DATA_ENTRIES;
+#  undef SPLIT_DATA_ENTRY
+
     size_buffer.alloc(1);
     size_buffer.zero_to_device();
+
+    offsets_buffer.alloc(split_data_entries_num + 2);
+    offsets_buffer.zero_to_device();
 
     uint threads = num_threads;
     OpenCLDevice::OpenCLSplitPrograms *programs = device->get_split_programs();
     cl_kernel kernel_state_buffer_size = programs->program_split(
         ustring("path_trace_state_buffer_size"));
-    device->kernel_set_args(kernel_state_buffer_size, 0, kg, data, threads, size_buffer);
+    device->kernel_set_args(kernel_state_buffer_size, 0, kg, data, threads, size_buffer, offsets_buffer);
 
     size_t global_size = 64;
     device->ciErr = clEnqueueNDRangeKernel(device->cqCommandQueue,
@@ -442,8 +500,15 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
     device->opencl_assert_err(device->ciErr, "clEnqueueNDRangeKernel");
 
     size_buffer.copy_from_device(0, 1, 1);
-    size_t size = size_buffer[0];
+    offsets_buffer.copy_from_device(0, split_data_entries_num + 2, 1);
+
+    uint64_t size = size_buffer[0];
+    offsets.resize(offsets_buffer.data_size);
+    std::memcpy(
+        offsets.data(), offsets_buffer.data(), offsets_buffer.memory_size());
+
     size_buffer.free();
+    offsets_buffer.free();
 
     if (device->ciErr != CL_SUCCESS) {
       string message = string_printf("OpenCL error: %s in clEnqueueNDRangeKernel()",

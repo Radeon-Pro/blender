@@ -20,7 +20,19 @@ CCL_NAMESPACE_BEGIN
  * It processes rays of state RAY_ACTIVE and RAY_HIT_BACKGROUND.
  * We will empty QUEUE_ACTIVE_AND_REGENERATED_RAYS queue in this kernel.
  */
-ccl_device void kernel_lamp_emission(KernelGlobals *kg)
+ccl_device void kernel_lamp_emission(KernelGlobals *kg
+#ifdef __KERNEL_OPENCL__
+                                     ,
+                                     ccl_constant KernelData *data,
+                                     ccl_global void *split_data_buffer,
+                                     ccl_global char *ray_state,
+                                     KERNEL_BUFFER_PARAMS,
+                                     ccl_global int *queue_index,
+                                     ccl_global char *use_queues_flag,
+                                     ccl_global unsigned int *work_pools,
+                                     ccl_global float *buffer
+#endif
+)
 {
 #ifndef __VOLUME__
   /* We will empty this queue in this kernel. */
@@ -37,7 +49,7 @@ ccl_device void kernel_lamp_emission(KernelGlobals *kg)
     ray_index = get_ray_index(kg,
                               ray_index,
                               QUEUE_ACTIVE_AND_REGENERATED_RAYS,
-                              kernel_split_state.queue_data,
+                              kernel_split_state_buffer(queue_data, int),
                               kernel_split_params.queue_size,
 #ifndef __VOLUME__
                               1
@@ -50,14 +62,15 @@ ccl_device void kernel_lamp_emission(KernelGlobals *kg)
     }
   }
 
-  if (IS_STATE(kernel_split_state.ray_state, ray_index, RAY_ACTIVE) ||
-      IS_STATE(kernel_split_state.ray_state, ray_index, RAY_HIT_BACKGROUND)) {
-    PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
-    ccl_global PathState *state = &kernel_split_state.path_state[ray_index];
+  if (IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE) ||
+      IS_STATE(ray_state_buffer, ray_index, RAY_HIT_BACKGROUND)) {
+    PathRadiance *L = kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) +
+                      ray_index;
+    ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
 
-    float3 throughput = kernel_split_state.throughput[ray_index];
-    Ray ray = kernel_split_state.ray[ray_index];
-    ccl_global Intersection *isect = &kernel_split_state.isect[ray_index];
+    float3 throughput = kernel_split_state_buffer(throughput, float3)[ray_index];
+    Ray ray = kernel_split_state_buffer(ray, Ray)[ray_index];
+    ccl_global Intersection *isect = kernel_split_state_buffer(isect, Intersection) + ray_index;
     ShaderData *sd = kernel_split_sd(sd, ray_index);
 
     kernel_path_lamp_emission(kg, state, &ray, throughput, isect, sd, L);

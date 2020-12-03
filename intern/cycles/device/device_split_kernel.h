@@ -101,6 +101,7 @@ class DeviceSplitKernel {
 
   /* Cached kernel-dependent data, initialized once. */
   bool kernel_data_initialized;
+  DeviceRequestedFeatures requested_features;
   size_t local_size[2];
   size_t global_size[2];
 
@@ -116,7 +117,8 @@ class DeviceSplitKernel {
 
   virtual uint64_t state_buffer_size(device_memory &kg,
                                      device_memory &data,
-                                     size_t num_threads) = 0;
+                                     size_t num_threads,
+                                     vector<uint64_t> &offsets) = 0;
   size_t max_elements_for_max_buffer_size(device_memory &kg,
                                           device_memory &data,
                                           uint64_t max_buffer_size);
@@ -133,7 +135,8 @@ class DeviceSplitKernel {
                                               device_memory &work_pool_wgs) = 0;
 
   virtual SplitKernelFunction *get_split_kernel_function(const string &kernel_name,
-                                                         const DeviceRequestedFeatures &) = 0;
+                                                         const DeviceRequestedFeatures &,
+                                                         const vector<uint64_t> &offsets) = 0;
   virtual int2 split_kernel_local_size() = 0;
   virtual int2 split_kernel_global_size(device_memory &kg,
                                         device_memory &data,

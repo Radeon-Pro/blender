@@ -23,6 +23,16 @@ CCL_NAMESPACE_BEGIN
  * in QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS queue.
  */
 ccl_device void kernel_shader_setup(KernelGlobals *kg,
+#ifdef __KERNEL_OPENCL__
+                                    ccl_constant KernelData *data,
+                                    ccl_global void *split_data_buffer,
+                                    ccl_global char *ray_state,
+                                    KERNEL_BUFFER_PARAMS,
+                                    ccl_global int *queue_index,
+                                    ccl_global char *use_queues_flag,
+                                    ccl_global unsigned int *work_pools,
+                                    ccl_global float *buffer,
+#endif
                                     ccl_local_param unsigned int *local_queue_atomics)
 {
   /* Enqeueue RAY_TO_REGENERATE rays into QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS queue. */
@@ -32,12 +42,12 @@ ccl_device void kernel_shader_setup(KernelGlobals *kg,
   ccl_barrier(CCL_LOCAL_MEM_FENCE);
 
   int ray_index = ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0);
-  int queue_index = kernel_split_params.queue_index[QUEUE_ACTIVE_AND_REGENERATED_RAYS];
-  if (ray_index < queue_index) {
+  int queue_id = kernel_split_params.queue_index[QUEUE_ACTIVE_AND_REGENERATED_RAYS];
+  if (ray_index < queue_id) {
     ray_index = get_ray_index(kg,
                               ray_index,
                               QUEUE_ACTIVE_AND_REGENERATED_RAYS,
-                              kernel_split_state.queue_data,
+                              kernel_split_state_buffer(queue_data, int),
                               kernel_split_params.queue_size,
                               0);
   }
@@ -45,27 +55,26 @@ ccl_device void kernel_shader_setup(KernelGlobals *kg,
     ray_index = QUEUE_EMPTY_SLOT;
   }
 
-  char enqueue_flag = (IS_STATE(kernel_split_state.ray_state, ray_index, RAY_TO_REGENERATE)) ? 1 :
-                                                                                               0;
+  char enqueue_flag = (IS_STATE(ray_state_buffer, ray_index, RAY_TO_REGENERATE)) ? 1 : 0;
   enqueue_ray_index_local(ray_index,
                           QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS,
                           enqueue_flag,
                           kernel_split_params.queue_size,
                           local_queue_atomics,
-                          kernel_split_state.queue_data,
+                          kernel_split_state_buffer(queue_data, int),
                           kernel_split_params.queue_index);
 
   /* Continue on with shader evaluation. */
-  if (IS_STATE(kernel_split_state.ray_state, ray_index, RAY_ACTIVE)) {
-    Intersection isect = kernel_split_state.isect[ray_index];
-    Ray ray = kernel_split_state.ray[ray_index];
+  if (IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE)) {
+    Intersection isect = kernel_split_state_buffer(isect, Intersection)[ray_index];
+    Ray ray = kernel_split_state_buffer(ray, Ray)[ray_index];
     ShaderData *sd = kernel_split_sd(sd, ray_index);
 
     shader_setup_from_ray(kg, sd, &isect, &ray);
 
 #ifdef __VOLUME__
     if (sd->flag & SD_HAS_ONLY_VOLUME) {
-      ASSIGN_RAY_STATE(kernel_split_state.ray_state, ray_index, RAY_HAS_ONLY_VOLUME);
+      ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_HAS_ONLY_VOLUME);
     }
 #endif
   }

@@ -19,17 +19,29 @@ CCL_NAMESPACE_BEGIN
 /* This kernel evaluates ShaderData structure from the values computed
  * by the previous kernels.
  */
-ccl_device void kernel_shader_eval(KernelGlobals *kg)
+ccl_device void kernel_shader_eval(KernelGlobals *kg
+#ifdef __KERNEL_OPENCL__
+                                   ,
+                                   ccl_constant KernelData *data,
+                                   ccl_global void *split_data_buffer,
+                                   ccl_global char *ray_state,
+                                   KERNEL_BUFFER_PARAMS,
+                                   ccl_global int *queue_index,
+                                   ccl_global char *use_queues_flag,
+                                   ccl_global unsigned int *work_pools,
+                                   ccl_global float *buffer
+#endif
+)
 {
 
   int ray_index = ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0);
   /* Sorting on cuda split is not implemented */
 #ifdef __KERNEL_CUDA__
-  int queue_index = kernel_split_params.queue_index[QUEUE_ACTIVE_AND_REGENERATED_RAYS];
+  int queue_id = kernel_split_params.queue_index[QUEUE_ACTIVE_AND_REGENERATED_RAYS];
 #else
-  int queue_index = kernel_split_params.queue_index[QUEUE_SHADER_SORTED_RAYS];
+  int queue_id = kernel_split_params.queue_index[QUEUE_SHADER_SORTED_RAYS];
 #endif
-  if (ray_index >= queue_index) {
+  if (ray_index >= queue_id) {
     return;
   }
   ray_index = get_ray_index(kg,
@@ -39,7 +51,7 @@ ccl_device void kernel_shader_eval(KernelGlobals *kg)
 #else
                             QUEUE_SHADER_SORTED_RAYS,
 #endif
-                            kernel_split_state.queue_data,
+                            kernel_split_state_buffer(queue_data, int),
                             kernel_split_params.queue_size,
                             0);
 
@@ -47,10 +59,9 @@ ccl_device void kernel_shader_eval(KernelGlobals *kg)
     return;
   }
 
-  ccl_global char *ray_state = kernel_split_state.ray_state;
-  if (IS_STATE(ray_state, ray_index, RAY_ACTIVE)) {
-    ccl_global PathState *state = &kernel_split_state.path_state[ray_index];
-    uint buffer_offset = kernel_split_state.buffer_offset[ray_index];
+  if (IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE)) {
+    ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
+    uint buffer_offset = kernel_split_state_buffer(buffer_offset, uint)[ray_index];
     ccl_global float *buffer = kernel_split_params.tile.buffer + buffer_offset;
 
     shader_eval_surface(kg, kernel_split_sd(sd, ray_index), state, buffer, state->flag);

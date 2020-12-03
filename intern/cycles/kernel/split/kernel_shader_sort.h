@@ -16,7 +16,18 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device void kernel_shader_sort(KernelGlobals *kg, ccl_local_param ShaderSortLocals *locals)
+ccl_device void kernel_shader_sort(KernelGlobals *kg,
+#ifdef __KERNEL_OPENCL__
+                                   ccl_constant KernelData *data,
+                                   ccl_global void *split_data_buffer,
+                                   ccl_global char *ray_state,
+                                   KERNEL_BUFFER_PARAMS,
+                                   ccl_global int *queue_index,
+                                   ccl_global char *use_queues_flag,
+                                   ccl_global unsigned int *work_pools,
+                                   ccl_global float *buffer,
+#endif
+                                   ccl_local_param ShaderSortLocals *locals)
 {
 #ifndef __KERNEL_CUDA__
   int tid = ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0);
@@ -42,9 +53,9 @@ ccl_device void kernel_shader_sort(KernelGlobals *kg, ccl_local_param ShaderSort
     uint add = input + idx;
     uint value = (~0);
     if (idx < qsize) {
-      int ray_index = kernel_split_state.queue_data[add];
+      int ray_index = kernel_split_state_buffer(queue_data, int)[add];
       bool valid = (ray_index != QUEUE_EMPTY_SLOT) &&
-                   IS_STATE(kernel_split_state.ray_state, ray_index, RAY_ACTIVE);
+                   IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE);
       if (valid) {
         value = kernel_split_sd(sd, ray_index)->shader & SHADER_MASK;
       }
@@ -87,8 +98,10 @@ ccl_device void kernel_shader_sort(KernelGlobals *kg, ccl_local_param ShaderSort
     uint ini = input + offset + lidx;
     uint value = local_value[lidx];
     if (idx < qsize) {
-      kernel_split_state.queue_data[outi] = (value == (~0)) ? QUEUE_EMPTY_SLOT :
-                                                              kernel_split_state.queue_data[ini];
+      kernel_split_state_buffer(queue_data, int)[outi] = (value == (~0)) ?
+                                                             QUEUE_EMPTY_SLOT :
+                                                             kernel_split_state_buffer(queue_data,
+                                                                                       int)[ini];
     }
   }
 #endif /* __KERNEL_CUDA__ */

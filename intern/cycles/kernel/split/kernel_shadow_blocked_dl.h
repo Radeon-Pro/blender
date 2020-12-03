@@ -17,7 +17,19 @@
 CCL_NAMESPACE_BEGIN
 
 /* Shadow ray cast for direct visible light. */
-ccl_device void kernel_shadow_blocked_dl(KernelGlobals *kg)
+ccl_device void kernel_shadow_blocked_dl(KernelGlobals *kg
+#ifdef __KERNEL_OPENCL__
+                                         ,
+                                         ccl_constant KernelData *data,
+                                         ccl_global void *split_data_buffer,
+                                         ccl_global char *ray_state,
+                                         KERNEL_BUFFER_PARAMS,
+                                         ccl_global int *queue_index,
+                                         ccl_global char *use_queues_flag,
+                                         ccl_global unsigned int *work_pools,
+                                         ccl_global float *buffer
+#endif
+)
 {
   unsigned int dl_queue_length = kernel_split_params.queue_index[QUEUE_SHADOW_RAY_CAST_DL_RAYS];
   ccl_barrier(CCL_LOCAL_MEM_FENCE);
@@ -28,7 +40,7 @@ ccl_device void kernel_shadow_blocked_dl(KernelGlobals *kg)
     ray_index = get_ray_index(kg,
                               thread_index,
                               QUEUE_SHADOW_RAY_CAST_DL_RAYS,
-                              kernel_split_state.queue_data,
+                              kernel_split_state_buffer(queue_data, int),
                               kernel_split_params.queue_size,
                               1);
   }
@@ -44,15 +56,15 @@ ccl_device void kernel_shadow_blocked_dl(KernelGlobals *kg)
   if (ray_index == QUEUE_EMPTY_SLOT)
     return;
 
-  ccl_global PathState *state = &kernel_split_state.path_state[ray_index];
-  Ray ray = kernel_split_state.light_ray[ray_index];
-  PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
+  ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
+  Ray ray = kernel_split_state_buffer(light_ray, Ray)[ray_index];
+  PathRadiance *L = kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) + ray_index;
   ShaderData *sd = kernel_split_sd(sd, ray_index);
-  float3 throughput = kernel_split_state.throughput[ray_index];
+  float3 throughput = kernel_split_state_buffer(throughput, float3)[ray_index];
 
-  BsdfEval L_light = kernel_split_state.bsdf_eval[ray_index];
+  BsdfEval L_light = kernel_split_state_buffer(bsdf_eval, BsdfEval)[ray_index];
   ShaderData *emission_sd = AS_SHADER_DATA(&kernel_split_state.sd_DL_shadow[ray_index]);
-  bool is_lamp = kernel_split_state.is_lamp[ray_index];
+  bool is_lamp = kernel_split_state_buffer(is_lamp, int)[ray_index];
 
 #if defined(__BRANCHED_PATH__) || defined(__SHADOW_TRICKS__)
   bool use_branched = false;
@@ -66,7 +78,7 @@ ccl_device void kernel_shadow_blocked_dl(KernelGlobals *kg)
   else if (kernel_data.integrator.branched) {
     use_branched = true;
 
-    if (IS_FLAG(kernel_split_state.ray_state, ray_index, RAY_BRANCHED_INDIRECT)) {
+    if (IS_FLAG(ray_state_buffer, ray_index, RAY_BRANCHED_INDIRECT)) {
       all = (kernel_data.integrator.sample_all_lights_indirect);
     }
     else {

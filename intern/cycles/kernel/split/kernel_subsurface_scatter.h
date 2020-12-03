@@ -175,7 +175,19 @@ ccl_device_noinline bool kernel_split_branched_path_subsurface_indirect_light_it
 
 #endif /* __BRANCHED_PATH__ && __SUBSURFACE__ */
 
-ccl_device void kernel_subsurface_scatter(KernelGlobals *kg)
+ccl_device void kernel_subsurface_scatter(KernelGlobals *kg
+#ifdef __KERNEL_OPENCL__
+                                          ,
+                                          ccl_constant KernelData *data,
+                                          ccl_global void *split_data_buffer,
+                                          ccl_global char *ray_state,
+                                          KERNEL_BUFFER_PARAMS,
+                                          ccl_global int *queue_index,
+                                          ccl_global char *use_queues_flag,
+                                          ccl_global unsigned int *work_pools,
+                                          ccl_global float *buffer
+#endif
+)
 {
   int thread_index = ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0);
   if (thread_index == 0) {
@@ -188,37 +200,35 @@ ccl_device void kernel_subsurface_scatter(KernelGlobals *kg)
   ray_index = get_ray_index(kg,
                             ray_index,
                             QUEUE_ACTIVE_AND_REGENERATED_RAYS,
-                            kernel_split_state.queue_data,
+                            kernel_split_state_buffer(queue_data, int),
                             kernel_split_params.queue_size,
                             1);
   get_ray_index(kg,
                 thread_index,
                 QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS,
-                kernel_split_state.queue_data,
+                kernel_split_state_buffer(queue_data, int),
                 kernel_split_params.queue_size,
                 1);
 
 #ifdef __SUBSURFACE__
-  ccl_global char *ray_state = kernel_split_state.ray_state;
-
-  if (IS_STATE(ray_state, ray_index, RAY_ACTIVE)) {
-    ccl_global PathState *state = &kernel_split_state.path_state[ray_index];
-    PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
-    ccl_global Ray *ray = &kernel_split_state.ray[ray_index];
-    ccl_global float3 *throughput = &kernel_split_state.throughput[ray_index];
-    ccl_global SubsurfaceIndirectRays *ss_indirect = &kernel_split_state.ss_rays[ray_index];
+  if (IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE)) {
+    ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
+    PathRadiance *L = kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) + ray_index;
+    ccl_global Ray *ray = kernel_split_state_buffer(ray, Ray) + ray_index;
+    ccl_global float3 *throughput = kernel_split_state_buffer(throughput, float3) + ray_index;
+    ccl_global SubsurfaceIndirectRays *ss_indirect = kernel_split_state_buffer(ss_rays, SubsurfaceIndirectRays) + ray_index;
     ShaderData *sd = kernel_split_sd(sd, ray_index);
-    ShaderData *emission_sd = AS_SHADER_DATA(&kernel_split_state.sd_DL_shadow[ray_index]);
+    ShaderData *emission_sd = AS_SHADER_DATA(kernel_split_state_buffer_addr_space(sd_DL_shadow, ShaderDataTinyStorage) + ray_index);
 
     if (sd->flag & SD_BSSRDF) {
 
 #  ifdef __BRANCHED_PATH__
       if (!kernel_data.integrator.branched ||
-          IS_FLAG(ray_state, ray_index, RAY_BRANCHED_INDIRECT)) {
+          IS_FLAG(ray_state_buffer, ray_index, RAY_BRANCHED_INDIRECT)) {
 #  endif
         if (kernel_path_subsurface_scatter(
                 kg, sd, emission_sd, L, state, ray, throughput, ss_indirect)) {
-          kernel_split_path_end(kg, ray_index);
+          kernel_split_path_end(kg, ray_state_buffer, ray_index);
         }
 #  ifdef __BRANCHED_PATH__
       }
@@ -226,7 +236,7 @@ ccl_device void kernel_subsurface_scatter(KernelGlobals *kg)
         kernel_split_branched_path_subsurface_indirect_light_init(kg, ray_index);
 
         if (kernel_split_branched_path_subsurface_indirect_light_iter(kg, ray_index)) {
-          ASSIGN_RAY_STATE(ray_state, ray_index, RAY_REGENERATED);
+          ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);
         }
       }
 #  endif
@@ -242,18 +252,18 @@ ccl_device void kernel_subsurface_scatter(KernelGlobals *kg)
   ray_index = get_ray_index(kg,
                             ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0),
                             QUEUE_SUBSURFACE_INDIRECT_ITER,
-                            kernel_split_state.queue_data,
+                            kernel_split_state_buffer(queue_data, int),
                             kernel_split_params.queue_size,
                             1);
 
-  if (IS_STATE(ray_state, ray_index, RAY_SUBSURFACE_INDIRECT_NEXT_ITER)) {
+  if (IS_STATE(ray_state_buffer, ray_index, RAY_SUBSURFACE_INDIRECT_NEXT_ITER)) {
     /* for render passes, sum and reset indirect light pass variables
      * for the next samples */
-    path_radiance_sum_indirect(&kernel_split_state.path_radiance[ray_index]);
-    path_radiance_reset_indirect(&kernel_split_state.path_radiance[ray_index]);
+    path_radiance_sum_indirect(kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) + ray_index);
+    path_radiance_reset_indirect(kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) + ray_index);
 
     if (kernel_split_branched_path_subsurface_indirect_light_iter(kg, ray_index)) {
-      ASSIGN_RAY_STATE(ray_state, ray_index, RAY_REGENERATED);
+      ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);
     }
   }
 #  endif /* __BRANCHED_PATH__ */

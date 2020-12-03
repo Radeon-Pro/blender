@@ -83,7 +83,9 @@ void KERNEL_FUNCTION_FULL_NAME(data_init)(
   kernel_split_params.queue_size = queuesize;
   kernel_split_params.use_queues_flag = use_queues_flag;
 
+#  ifndef __KERNEL_OPENCL__
   split_data_init(kg, &kernel_split_state, num_elements, split_data_buffer, ray_state);
+#  endif
 
 #  ifdef __KERNEL_OPENCL__
   kernel_set_buffer_pointers(kg, KERNEL_BUFFER_ARGS);
@@ -95,7 +97,7 @@ void KERNEL_FUNCTION_FULL_NAME(data_init)(
   /* Initialize queue data and queue index. */
   if (thread_index < queuesize) {
     for (int i = 0; i < NUM_QUEUES; i++) {
-      kernel_split_state.queue_data[i * queuesize + thread_index] = QUEUE_EMPTY_SLOT;
+      kernel_split_state_buffer(queue_data, int)[i * queuesize + thread_index] = QUEUE_EMPTY_SLOT;
     }
   }
 

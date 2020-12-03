@@ -16,7 +16,19 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device void kernel_adaptive_filter_y(KernelGlobals *kg)
+ccl_device void kernel_adaptive_filter_y(KernelGlobals *kg
+#ifdef __KERNEL_OPENCL__
+                                         ,
+                                         ccl_constant KernelData *data,
+                                         ccl_global void *split_data_buffer,
+                                         ccl_global char *ray_states,
+                                         KERNEL_BUFFER_PARAMS,
+                                         ccl_global int *queue_indices,
+                                         ccl_global char *use_queues_flag,
+                                         ccl_global unsigned int *work_pools,
+                                         ccl_global float *buffer
+#endif
+)
 {
   int pixel_index = ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0);
   if (pixel_index < kernel_split_params.tile.w &&

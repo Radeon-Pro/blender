@@ -23,7 +23,19 @@ CCL_NAMESPACE_BEGIN
  * This kernel determines the rays that have hit the background and changes
  * their ray state to RAY_HIT_BACKGROUND.
  */
-ccl_device void kernel_scene_intersect(KernelGlobals *kg)
+ccl_device void kernel_scene_intersect(KernelGlobals *kg
+#ifdef __KERNEL_OPENCL__
+                                       ,
+                                       ccl_constant KernelData *data,
+                                       ccl_global void *split_data_buffer,
+                                       ccl_global char *ray_state,
+                                       KERNEL_BUFFER_PARAMS,
+                                       ccl_global int *queue_index,
+                                       ccl_global char *use_queues_flag,
+                                       ccl_global unsigned int *work_pools,
+                                       ccl_global float *buffer
+#endif
+)
 {
   /* Fetch use_queues_flag */
   char local_use_queues_flag = *kernel_split_params.use_queues_flag;
@@ -34,7 +46,7 @@ ccl_device void kernel_scene_intersect(KernelGlobals *kg)
     ray_index = get_ray_index(kg,
                               ray_index,
                               QUEUE_ACTIVE_AND_REGENERATED_RAYS,
-                              kernel_split_state.queue_data,
+                              kernel_split_state_buffer(queue_data, int),
                               kernel_split_params.queue_size,
                               0);
 
@@ -44,36 +56,37 @@ ccl_device void kernel_scene_intersect(KernelGlobals *kg)
   }
 
   /* All regenerated rays become active here */
-  if (IS_STATE(kernel_split_state.ray_state, ray_index, RAY_REGENERATED)) {
+  if (IS_STATE(ray_state_buffer, ray_index, RAY_REGENERATED)) {
 #ifdef __BRANCHED_PATH__
-    if (kernel_split_state.branched_state[ray_index].waiting_on_shared_samples) {
-      kernel_split_path_end(kg, ray_index);
+    if (kernel_split_state_buffer(branched_state, SplitBranchedState)[ray_index]
+            .waiting_on_shared_samples) {
+      kernel_split_path_end(kg, ray_state_buffer, ray_index);
     }
     else
 #endif /* __BRANCHED_PATH__ */
     {
-      ASSIGN_RAY_STATE(kernel_split_state.ray_state, ray_index, RAY_ACTIVE);
+      ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_ACTIVE);
     }
   }
 
-  if (!IS_STATE(kernel_split_state.ray_state, ray_index, RAY_ACTIVE)) {
+  if (!IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE)) {
     return;
   }
 
-  ccl_global PathState *state = &kernel_split_state.path_state[ray_index];
-  Ray ray = kernel_split_state.ray[ray_index];
-  PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
+  ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
+  Ray ray = kernel_split_state_buffer(ray, Ray)[ray_index];
+  PathRadiance *L = kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) + ray_index;
 
   Intersection isect;
   bool hit = kernel_path_scene_intersect(kg, state, &ray, &isect, L);
-  kernel_split_state.isect[ray_index] = isect;
+  kernel_split_state_buffer(isect, Intersection)[ray_index] = isect;
 
   if (!hit) {
     /* Change the state of rays that hit the background;
      * These rays undergo special processing in the
      * background_bufferUpdate kernel.
      */
-    ASSIGN_RAY_STATE(kernel_split_state.ray_state, ray_index, RAY_HIT_BACKGROUND);
+    ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_HIT_BACKGROUND);
   }
 }
 

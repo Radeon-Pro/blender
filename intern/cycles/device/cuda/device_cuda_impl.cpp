@@ -89,7 +89,10 @@ class CUDASplitKernel : public DeviceSplitKernel {
  public:
   explicit CUDASplitKernel(CUDADevice *device);
 
-  virtual uint64_t state_buffer_size(device_memory &kg, device_memory &data, size_t num_threads);
+  virtual uint64_t state_buffer_size(device_memory &kg,
+                                     device_memory &data,
+                                     size_t num_threads,
+                                     vector<uint64_t> &offsets);
 
   virtual bool enqueue_split_kernel_data_init(const KernelDimensions &dim,
                                               RenderTile &rtile,
@@ -103,7 +106,8 @@ class CUDASplitKernel : public DeviceSplitKernel {
                                               device_memory &work_pool_wgs);
 
   virtual SplitKernelFunction *get_split_kernel_function(const string &kernel_name,
-                                                         const DeviceRequestedFeatures &);
+                                                         const DeviceRequestedFeatures &,
+                                                         const vector<uint64_t>&);
   virtual int2 split_kernel_local_size();
   virtual int2 split_kernel_global_size(device_memory &kg, device_memory &data, DeviceTask &task);
 };
@@ -2541,7 +2545,8 @@ CUDASplitKernel::CUDASplitKernel(CUDADevice *device) : DeviceSplitKernel(device)
 
 uint64_t CUDASplitKernel::state_buffer_size(device_memory & /*kg*/,
                                             device_memory & /*data*/,
-                                            size_t num_threads)
+                                            size_t num_threads,
+                                            vector<uint64_t>&)
 {
   CUDAContextScope scope(device);
 
@@ -2568,6 +2573,8 @@ uint64_t CUDASplitKernel::state_buffer_size(device_memory & /*kg*/,
   size_buffer.copy_from_device(0, 1, 1);
   size_t size = size_buffer[0];
   size_buffer.free();
+
+  /// TODO: fill offsets buffer
 
   return size;
 }
@@ -2647,7 +2654,8 @@ bool CUDASplitKernel::enqueue_split_kernel_data_init(const KernelDimensions &dim
 }
 
 SplitKernelFunction *CUDASplitKernel::get_split_kernel_function(const string &kernel_name,
-                                                                const DeviceRequestedFeatures &)
+                                                                const DeviceRequestedFeatures &,
+                                                                const vector<uint64_t> &)
 {
   const CUDAContextScope scope(device);
 

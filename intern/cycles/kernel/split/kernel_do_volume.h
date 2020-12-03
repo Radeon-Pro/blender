@@ -181,7 +181,7 @@ ccl_device void kernel_do_volume(KernelGlobals *kg)
               ASSIGN_RAY_STATE(ray_state, ray_index, RAY_REGENERATED);
             }
             else {
-              kernel_split_path_end(kg, ray_index);
+              kernel_split_path_end(kg, ray_state, ray_index);
             }
           }
 #  endif /* __VOLUME_SCATTER__ */

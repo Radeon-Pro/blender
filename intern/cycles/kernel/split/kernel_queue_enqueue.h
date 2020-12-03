@@ -35,7 +35,18 @@ CCL_NAMESPACE_BEGIN
  *   - QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS will be filled with
  *     RAY_TO_REGENERATE, RAY_UPDATE_BUFFER, RAY_HIT_BACKGROUND rays.
  */
-ccl_device void kernel_queue_enqueue(KernelGlobals *kg, ccl_local_param QueueEnqueueLocals *locals)
+ccl_device void kernel_queue_enqueue(KernelGlobals *kg,
+#ifdef __KERNEL_OPENCL__
+                                     ccl_constant KernelData *data,
+                                     ccl_global void *split_data_buffer,
+                                     ccl_global char *ray_state,
+                                     KERNEL_BUFFER_PARAMS,
+                                     ccl_global int *queue_index,
+                                     ccl_global char *use_queues_flag,
+                                     ccl_global unsigned int *work_pools,
+                                     ccl_global float *buffer,
+#endif
+                                     ccl_local_param QueueEnqueueLocals *locals)
 {
   /* We have only 2 cases (Hit/Not-Hit) */
   int lidx = ccl_local_id(1) * ccl_local_size(0) + ccl_local_id(0);
@@ -49,14 +60,14 @@ ccl_device void kernel_queue_enqueue(KernelGlobals *kg, ccl_local_param QueueEnq
 
   int queue_number = -1;
 
-  if (IS_STATE(kernel_split_state.ray_state, ray_index, RAY_HIT_BACKGROUND) ||
-      IS_STATE(kernel_split_state.ray_state, ray_index, RAY_UPDATE_BUFFER) ||
-      IS_STATE(kernel_split_state.ray_state, ray_index, RAY_TO_REGENERATE)) {
+  if (IS_STATE(ray_state_buffer, ray_index, RAY_HIT_BACKGROUND) ||
+      IS_STATE(ray_state_buffer, ray_index, RAY_UPDATE_BUFFER) ||
+      IS_STATE(ray_state_buffer, ray_index, RAY_TO_REGENERATE)) {
     queue_number = QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS;
   }
-  else if (IS_STATE(kernel_split_state.ray_state, ray_index, RAY_ACTIVE) ||
-           IS_STATE(kernel_split_state.ray_state, ray_index, RAY_HAS_ONLY_VOLUME) ||
-           IS_STATE(kernel_split_state.ray_state, ray_index, RAY_REGENERATED)) {
+  else if (IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE) ||
+           IS_STATE(ray_state_buffer, ray_index, RAY_HAS_ONLY_VOLUME) ||
+           IS_STATE(ray_state_buffer, ray_index, RAY_REGENERATED)) {
     queue_number = QUEUE_ACTIVE_AND_REGENERATED_RAYS;
   }
 
@@ -80,7 +91,7 @@ ccl_device void kernel_queue_enqueue(KernelGlobals *kg, ccl_local_param QueueEnq
   if (queue_number != -1) {
     my_gqidx = get_global_queue_index(
         queue_number, kernel_split_params.queue_size, my_lqidx, locals->queue_atomics);
-    kernel_split_state.queue_data[my_gqidx] = ray_index;
+    kernel_split_state_buffer(queue_data, int)[my_gqidx] = ray_index;
   }
 }
 

@@ -165,10 +165,14 @@ class CPUSplitKernel : public DeviceSplitKernel {
                                               device_memory &work_pool_wgs);
 
   virtual SplitKernelFunction *get_split_kernel_function(const string &kernel_name,
-                                                         const DeviceRequestedFeatures &);
+                                                         const DeviceRequestedFeatures &,
+                                                         const vector<uint64_t> &);
   virtual int2 split_kernel_local_size();
   virtual int2 split_kernel_global_size(device_memory &kg, device_memory &data, DeviceTask &task);
-  virtual uint64_t state_buffer_size(device_memory &kg, device_memory &data, size_t num_threads);
+  virtual uint64_t state_buffer_size(device_memory &kg,
+                                     device_memory &data,
+                                     size_t num_threads,
+                                     vector<uint64_t> &offsets);
 };
 
 class CPUDevice : public Device {
@@ -1580,7 +1584,8 @@ bool CPUSplitKernel::enqueue_split_kernel_data_init(const KernelDimensions &dim,
 }
 
 SplitKernelFunction *CPUSplitKernel::get_split_kernel_function(const string &kernel_name,
-                                                               const DeviceRequestedFeatures &)
+                                                               const DeviceRequestedFeatures &,
+                                                               const vector<uint64_t> &)
 {
   CPUSplitKernelFunction *kernel = new CPUSplitKernelFunction(device);
 
@@ -1607,11 +1612,12 @@ int2 CPUSplitKernel::split_kernel_global_size(device_memory & /*kg*/,
 
 uint64_t CPUSplitKernel::state_buffer_size(device_memory &kernel_globals,
                                            device_memory & /*data*/,
-                                           size_t num_threads)
+                                           size_t num_threads,
+                                           vector<uint64_t> &offsets)
 {
   KernelGlobals *kg = (KernelGlobals *)kernel_globals.device_pointer;
 
-  return split_data_buffer_size(kg, num_threads);
+  return split_data_buffer_size(kg, num_threads, offsets.data());
 }
 
 Device *device_cpu_create(DeviceInfo &info, Stats &stats, Profiler &profiler, bool background)

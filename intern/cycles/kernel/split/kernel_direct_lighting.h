@@ -41,6 +41,16 @@ CCL_NAMESPACE_BEGIN
  *    Before this kernel call the QUEUE_SHADOW_RAY_CAST_DL_RAYS will be empty.
  */
 ccl_device void kernel_direct_lighting(KernelGlobals *kg,
+#ifdef __KERNEL_OPENCL__
+                                       ccl_constant KernelData *data,
+                                       ccl_global void *split_data_buffer,
+                                       ccl_global char *ray_state,
+                                       KERNEL_BUFFER_PARAMS,
+                                       ccl_global int *queue_index,
+                                       ccl_global char *use_queues_flag,
+                                       ccl_global unsigned int *work_pools,
+                                       ccl_global float *buffer,
+#endif
                                        ccl_local_param unsigned int *local_queue_atomics)
 {
   if (ccl_local_id(0) == 0 && ccl_local_id(1) == 0) {
@@ -53,12 +63,12 @@ ccl_device void kernel_direct_lighting(KernelGlobals *kg,
   ray_index = get_ray_index(kg,
                             ray_index,
                             QUEUE_ACTIVE_AND_REGENERATED_RAYS,
-                            kernel_split_state.queue_data,
+                            kernel_split_state_buffer(queue_data, int),
                             kernel_split_params.queue_size,
                             0);
 
-  if (IS_STATE(kernel_split_state.ray_state, ray_index, RAY_ACTIVE)) {
-    ccl_global PathState *state = &kernel_split_state.path_state[ray_index];
+  if (IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE)) {
+    ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
     ShaderData *sd = kernel_split_sd(sd, ray_index);
 
     /* direct lighting */
@@ -94,7 +104,8 @@ ccl_device void kernel_direct_lighting(KernelGlobals *kg,
         bool is_lamp;
         if (direct_emission(kg,
                             sd,
-                            AS_SHADER_DATA(&kernel_split_state.sd_DL_shadow[ray_index]),
+                AS_SHADER_DATA(kernel_split_state_buffer_addr_space(sd_DL_shadow, ShaderDataTinyStorage) +
+                               ray_index),
                             &ls,
                             state,
                             &light_ray,
@@ -104,9 +115,9 @@ ccl_device void kernel_direct_lighting(KernelGlobals *kg,
           /* Write intermediate data to global memory to access from
            * the next kernel.
            */
-          kernel_split_state.light_ray[ray_index] = light_ray;
-          kernel_split_state.bsdf_eval[ray_index] = L_light;
-          kernel_split_state.is_lamp[ray_index] = is_lamp;
+          kernel_split_state_buffer(light_ray, Ray)[ray_index] = light_ray;
+          kernel_split_state_buffer(bsdf_eval, BsdfEval)[ray_index] = L_light;
+          kernel_split_state_buffer(is_lamp, int)[ray_index] = is_lamp;
           /* Mark ray state for next shadow kernel. */
           enqueue_flag = 1;
         }
@@ -122,7 +133,7 @@ ccl_device void kernel_direct_lighting(KernelGlobals *kg,
                           enqueue_flag,
                           kernel_split_params.queue_size,
                           local_queue_atomics,
-                          kernel_split_state.queue_data,
+                          kernel_split_state_buffer(queue_data, int),
                           kernel_split_params.queue_index);
 #endif
 
@@ -140,10 +151,10 @@ ccl_device void kernel_direct_lighting(KernelGlobals *kg,
   enqueue_ray_index_local(
       ray_index,
       QUEUE_LIGHT_INDIRECT_ITER,
-      IS_STATE(kernel_split_state.ray_state, ray_index, RAY_LIGHT_INDIRECT_NEXT_ITER),
+      IS_STATE(ray_state_buffer, ray_index, RAY_LIGHT_INDIRECT_NEXT_ITER),
       kernel_split_params.queue_size,
       local_queue_atomics,
-      kernel_split_state.queue_data,
+      kernel_split_state_buffer(queue_data, int),
       kernel_split_params.queue_index);
 
 #endif /* __BRANCHED_PATH__ */
