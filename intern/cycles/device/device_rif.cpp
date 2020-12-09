@@ -69,7 +69,7 @@ CCL_NAMESPACE_BEGIN
 
 HMODULE LoadRIFDll(LPCSTR moduleName)
 {
-  return LoadLibraryA("C:\Program Files\AMD\CNext\CNext\RadeonImageFilters.dll");
+  return LoadLibraryA("C:/Program Files/AMD/CNext/CNext/RadeonImageFilters.dll");
 }
 
 FARPROC WINAPI RIFDliNotifyHook(unsigned dliNotify, PDelayLoadInfo pdli)

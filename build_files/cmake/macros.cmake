@@ -1228,7 +1228,7 @@ macro(rif_delayload
         set(RIF_DLL_NAME "RadeonImageFilters")
       endif()
       set_property(TARGET ${projectname} APPEND_STRING  PROPERTY LINK_FLAGS_RELEASE " /DELAYLOAD:${RIF_DLL_NAME}.dll delayimp.lib")
-      set_property(TARGET ${projectname} APPEND_STRING  PROPERTY LINK_FLAGS_DEBUG " /DELAYLOAD:${RIF_DLL_NAME}d.dll delayimp.lib")
+      set_property(TARGET ${projectname} APPEND_STRING  PROPERTY LINK_FLAGS_DEBUG " /DELAYLOAD:${RIF_DLL_NAME}.dll delayimp.lib")
       set_property(TARGET ${projectname} APPEND_STRING  PROPERTY LINK_FLAGS_RELWITHDEBINFO " /DELAYLOAD:${RIF_DLL_NAME}.dll delayimp.lib")
       set_property(TARGET ${projectname} APPEND_STRING  PROPERTY LINK_FLAGS_MINSIZEREL " /DELAYLOAD:${RIF_DLL_NAME}.dll delayimp.lib")
     endif()
