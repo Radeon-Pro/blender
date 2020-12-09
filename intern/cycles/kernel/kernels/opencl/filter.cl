@@ -319,3 +319,103 @@ __kernel void kernel_ocl_filter_finalize(ccl_global float *buffer,
 		                       buffer_params, sample);
 	}
 }
+
+__kernel void kernel_ocl_filter_copy_input(ccl_global float *buffer,
+                                           CCL_FILTER_TILE_INFO,
+                                           int4 prefilter_rect,
+                                           int buffer_pass_stride)
+{
+	int x = prefilter_rect.x + get_global_id(0);
+	int y = prefilter_rect.y + get_global_id(1);
+	if(x < prefilter_rect.z && y < prefilter_rect.w) {
+		int xtile = (x < tile_info->x[1]) ? 0 : ((x < tile_info->x[2]) ? 1 : 2);
+		int ytile = (y < tile_info->y[1]) ? 0 : ((y < tile_info->y[2]) ? 1 : 2);
+		int itile = ytile * 3 + xtile;
+		ccl_global float *in = ((ccl_global float *)ccl_get_tile_buffer(itile)) +
+			(tile_info->offsets[itile] + y * tile_info->strides[itile] + x) * buffer_pass_stride;
+		buffer += ((y - prefilter_rect.y) * (prefilter_rect.z - prefilter_rect.x) + (x - prefilter_rect.x)) * buffer_pass_stride;
+		for (int i = 0; i < buffer_pass_stride; ++i)
+			buffer[i] = in[i];
+	}
+}
+
+__kernel void kernel_ocl_filter_split_aov(ccl_global float *buffer,
+                                          int pixel_stride,
+                                          int row_stride,
+                                          ccl_global float *color,
+                                          int color_offset,
+                                          ccl_global float *albedo,
+                                          int albedo_offset,
+                                          ccl_global float *normals,
+                                          int normals_offset,
+                                          ccl_global float *depth,
+                                          int depth_offset,
+                                          int w, int h,
+                                          float scale,
+                                          int color_only)
+{
+	int x = get_global_id(0);
+	int y = get_global_id(1);
+
+	ccl_global float *in = 0;
+	ccl_global float *out = 0;
+
+	if(x < w && y < h) {
+		int input_offset = x * pixel_stride + y * row_stride;
+		int output_offset = x * 3 + y * w * 3;
+
+		in = buffer + color_offset + input_offset;
+		out = color + output_offset;
+		out[0] = in[0] * scale;
+		out[1] = in[1] * scale;
+		out[2] = in[2] * scale;
+
+		if (color_only) {
+			return;
+		}
+
+		in = buffer + albedo_offset + input_offset;
+		out = albedo + output_offset;
+		out[0] = in[0] * scale;
+		out[1] = in[1] * scale;
+		out[2] = in[2] * scale;
+
+		in = buffer + normals_offset + input_offset;
+		out = normals + output_offset;
+		float3 normal = (float3)(in[0], in[1], in[2]);
+		normal = normalize(normal * scale);
+		out[0] = normal.x;
+		out[1] = normal.y;
+		out[2] = normal.z;
+
+		in = buffer + depth_offset + input_offset;
+		out = depth + x + y * w;
+		out[0] = in[0] * scale;
+	}
+}
+
+__kernel void kernel_ocl_filter_write_color(ccl_global float *src,
+                                            int pass_stride,
+                                            int target_offset,
+                                            int target_stride,
+                                            ccl_global float *dst,
+                                            int w,
+                                            int overlap_x,
+                                            int overlap_y,
+                                            int xmin,
+                                            int xmax,
+                                            int ymin,
+                                            int ymax,
+                                            float invscale)
+{
+	int x = xmin + get_global_id(0);
+	int y = ymin + get_global_id(1);
+
+	if(x < xmax && y < ymax) {
+		ccl_global float *in = src + (y - ymin + overlap_y) * w * 3;
+		ccl_global float *out = dst + pass_stride * target_offset + y * pass_stride * target_stride;
+		for (int e = 0; e < 3; e++) {
+			out[pass_stride * x + e] = in[3 * (x - xmin + overlap_x) + e] * invscale;
+		}
+	}
+}

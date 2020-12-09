@@ -86,6 +86,15 @@ void DebugFlags::OptiX::reset()
   curves_api = false;
 }
 
+DebugFlags::RIF::RIF()
+{
+  reset();
+}
+
+void DebugFlags::RIF::reset()
+{
+}
+
 DebugFlags::OpenCL::OpenCL() : device_type(DebugFlags::OpenCL::DEVICE_ALL), debug(false)
 {
   reset();
@@ -131,6 +140,7 @@ void DebugFlags::reset()
   cpu.reset();
   cuda.reset();
   optix.reset();
+  rif.reset();
   opencl.reset();
 }
 

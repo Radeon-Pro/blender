@@ -261,6 +261,21 @@ if(WITH_CYCLES_DEVICE_OPTIX)
   endif()
 endif()
 
+if(WITH_CYCLES_DEVICE_RIF)
+  find_package(RIF)
+
+  if(RIF_FOUND)
+    add_definitions(-DWITH_RIF)
+    include_directories(
+      SYSTEM
+      ${RIF_INCLUDE_DIRS}
+      )
+  else()
+    message(STATUS "RIF not found, disabling it from Cycles")
+    set(WITH_CYCLES_DEVICE_RIF OFF)
+  endif()
+endif()
+
 if(WITH_CYCLES_EMBREE)
   add_definitions(-DWITH_EMBREE)
   add_definitions(-DEMBREE_STATIC_LIB)

@@ -213,6 +213,7 @@ def enum_preview_denoiser(self, context):
 
 def enum_denoiser(self, context):
     items = [('NLM', "NLM", "Cycles native non-local means denoiser, running on any compute device", 1)]
+    items += [('RIF', "RIF", "Radeon image filters AI denoiser, running on any compute device", 8)]
     items += enum_optix_denoiser(self, context)
     items += enum_openimagedenoise_denoiser(self, context)
     return items
@@ -838,6 +839,8 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
 
     debug_optix_cuda_streams: IntProperty(name="CUDA Streams", default=1, min=1)
     debug_optix_curves_api: BoolProperty(name="Native OptiX Curve Primitive", default=False)
+
+    debug_rif_color_only: BoolProperty(name="Color only denoising", default=True)
 
     debug_opencl_kernel_type: EnumProperty(
         name="OpenCL Kernel Type",

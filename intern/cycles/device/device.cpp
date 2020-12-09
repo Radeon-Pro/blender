@@ -39,6 +39,7 @@ thread_mutex Device::device_mutex;
 vector<DeviceInfo> Device::opencl_devices;
 vector<DeviceInfo> Device::cuda_devices;
 vector<DeviceInfo> Device::optix_devices;
+vector<DeviceInfo> Device::rif_devices;
 vector<DeviceInfo> Device::cpu_devices;
 vector<DeviceInfo> Device::network_devices;
 uint Device::devices_initialized_mask = 0;
@@ -404,6 +405,12 @@ Device *Device::create(DeviceInfo &info, Stats &stats, Profiler &profiler, bool 
         device = device_opencl_create(info, stats, profiler, background);
       break;
 #endif
+#ifdef WITH_RIF
+    case DEVICE_RIF:
+      if (device_rif_init())
+        device = device_rif_create(info, stats, profiler, background);
+      break;
+#endif
     default:
       break;
   }
@@ -478,15 +485,31 @@ vector<DeviceInfo> Device::available_devices(uint mask)
   thread_scoped_lock lock(device_mutex);
   vector<DeviceInfo> devices;
 
-#ifdef WITH_OPENCL
-  if (mask & DEVICE_MASK_OPENCL) {
+#if defined(WITH_OPENCL) || defined(WITH_RIF)
+  if (mask & DEVICE_MASK_OPENCL | DEVICE_MASK_RIF) {
     if (!(devices_initialized_mask & DEVICE_MASK_OPENCL)) {
       if (device_opencl_init()) {
         device_opencl_info(opencl_devices);
       }
       devices_initialized_mask |= DEVICE_MASK_OPENCL;
     }
-    foreach (DeviceInfo &info, opencl_devices) {
+    if (mask & DEVICE_MASK_OPENCL) {
+      foreach (DeviceInfo &info, opencl_devices) {
+        devices.push_back(info);
+      }
+    }
+  }
+#endif
+
+#ifdef WITH_RIF
+  if (mask & DEVICE_MASK_RIF) {
+    if (!(devices_initialized_mask & DEVICE_MASK_RIF)) {
+      if (device_rif_init()) {
+        device_rif_info(opencl_devices, rif_devices);
+      }
+      devices_initialized_mask |= DEVICE_MASK_RIF;
+    }
+    foreach (DeviceInfo &info, rif_devices) {
       devices.push_back(info);
     }
   }
@@ -723,6 +746,37 @@ void DeviceInfo::add_denoising_devices(DenoiserType denoiser_type)
     denoising_devices.push_back(cpu_device);
 
     denoisers = denoiser_type;
+  }
+  else if (denoiser_type == DENOISER_RIF && type != DEVICE_RIF) {
+    vector<DeviceInfo> rif_devices = Device::available_devices(DEVICE_MASK_RIF);
+    if (!rif_devices.empty()) {
+      /* Convert to a special multi device with separate denoising devices. */
+      if (multi_devices.empty()) {
+        multi_devices.push_back(*this);
+      }
+
+      /* Try to use the same physical devices for denoising. */
+      for (const DeviceInfo &opencl_device : multi_devices) {
+        if (opencl_device.type == DEVICE_OPENCL) {
+          for (const DeviceInfo &rif_device : rif_devices) {
+            if (opencl_device.num == rif_device.num) {
+              id += rif_device.id;
+              denoising_devices.push_back(rif_device);
+              break;
+            }
+          }
+        }
+      }
+
+      if (denoising_devices.empty()) {
+        /* Simply use the first available RIF device. */
+        const DeviceInfo rif_device = rif_devices.front();
+        id += rif_device.id; /* Uniquely identify this special multi device. */
+        denoising_devices.push_back(rif_device);
+      }
+
+      denoisers = denoiser_type;
+    }
   }
 }
 

@@ -113,6 +113,17 @@ class DebugFlags {
     bool curves_api;
   };
 
+  /* Descriptor of RIF feature-set to be used. */
+  struct RIF {
+    RIF();
+
+    /* Reset flags to their defaults. */
+    void reset();
+
+    /* Use only color components for denoising. */
+    bool color_only;
+  };
+
   /* Descriptor of OpenCL feature-set to be used. */
   struct OpenCL {
     OpenCL();
@@ -181,6 +192,9 @@ class DebugFlags {
 
   /* Requested OptiX flags. */
   OptiX optix;
+
+  /* Requested RIF flags. */
+  RIF rif;
 
   /* Requested OpenCL flags. */
   OpenCL opencl;

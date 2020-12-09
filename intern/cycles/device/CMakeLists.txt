@@ -44,6 +44,7 @@ set(SRC
   device_multi.cpp
   device_opencl.cpp
   device_optix.cpp
+  device_rif.cpp
   device_split_kernel.cpp
   device_task.cpp
 )
@@ -103,6 +104,15 @@ if(WITH_CYCLES_DEVICE_OPENCL)
     extern_clew
   )
   add_definitions(-DWITH_OPENCL)
+endif()
+if(WITH_CYCLES_DEVICE_RIF)
+  add_definitions(-DWITH_RIF)
+  list(APPEND INC_SYS
+    ${RIF_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${RIF_LIBRARIES}
+  )
 endif()
 if(WITH_CYCLES_DEVICE_CUDA)
   add_definitions(-DWITH_CUDA)
