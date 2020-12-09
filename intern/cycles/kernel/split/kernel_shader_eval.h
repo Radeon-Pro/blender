@@ -60,7 +60,7 @@ ccl_device void kernel_shader_eval(KernelGlobals *kg
   }
 
   if (IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE)) {
-    ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
+    ccl_global PathState *state = &kernel_split_state_buffer(path_state, PathState)[ray_index];
     uint buffer_offset = kernel_split_state_buffer(buffer_offset, uint)[ray_index];
     ccl_global float *buffer = kernel_split_params.tile.buffer + buffer_offset;
 

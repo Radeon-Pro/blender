@@ -190,6 +190,9 @@ typedef struct SplitData {
 #    if !defined(buffer_offset_OFFSET)
 #      define buffer_offset_OFFSET ULONG_MAX
 #    endif
+#    if !defined(state_shadow_OFFSET)
+#      define state_shadow_OFFSET ULONG_MAX
+#    endif
 
 #    define kernel_split_state_buffer(buffer, type) \
         ((ccl_global type *)((ccl_global char *)split_data_buffer + buffer##_OFFSET))
@@ -199,7 +202,7 @@ typedef struct SplitData {
 
 #    define ray_state_buffer ray_state
 #  endif
-#  define kernel_split_state (kg->split_data)
+//#  define kernel_split_state (kg->split_data)
 #  define kernel_split_params (kg->split_param_data)
 #else
 __device__ SplitData __split_data;

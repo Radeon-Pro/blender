@@ -64,13 +64,13 @@ ccl_device void kernel_lamp_emission(KernelGlobals *kg
 
   if (IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE) ||
       IS_STATE(ray_state_buffer, ray_index, RAY_HIT_BACKGROUND)) {
-    PathRadiance *L = kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) +
-                      ray_index;
-    ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
+    PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance,
+                                                            PathRadiance)[ray_index];
+    ccl_global PathState *state = &kernel_split_state_buffer(path_state, PathState)[ray_index];
 
     float3 throughput = kernel_split_state_buffer(throughput, float3)[ray_index];
     Ray ray = kernel_split_state_buffer(ray, Ray)[ray_index];
-    ccl_global Intersection *isect = kernel_split_state_buffer(isect, Intersection) + ray_index;
+    ccl_global Intersection *isect = &kernel_split_state_buffer(isect, Intersection)[ray_index];
     ShaderData *sd = kernel_split_sd(sd, ray_index);
 
     kernel_path_lamp_emission(kg, state, &ray, throughput, isect, sd, L);

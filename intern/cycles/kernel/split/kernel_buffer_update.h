@@ -70,11 +70,11 @@ ccl_device void kernel_buffer_update(KernelGlobals *kg,
                             1);
 
   if (ray_index != QUEUE_EMPTY_SLOT) {
-    ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
-    PathRadiance *L = kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) +
-                      ray_index;
-    ccl_global Ray *ray = kernel_split_state_buffer(ray, Ray) + ray_index;
-    ccl_global float3 *throughput = kernel_split_state_buffer(throughput, float3) + ray_index;
+    ccl_global PathState *state = &kernel_split_state_buffer(path_state, PathState)[ray_index];
+    PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance,
+                                                            PathRadiance)[ray_index];
+    ccl_global Ray *ray = &kernel_split_state_buffer(ray, Ray)[ray_index];
+    ccl_global float3 *throughput = &kernel_split_state_buffer(throughput, float3)[ray_index];
     bool ray_was_updated = false;
 
     if (IS_STATE(ray_state_buffer, ray_index, RAY_UPDATE_BUFFER)) {
@@ -131,16 +131,15 @@ ccl_device void kernel_buffer_update(KernelGlobals *kg,
           *throughput = make_float3(1.0f, 1.0f, 1.0f);
           path_radiance_init(kg, L);
           path_state_init(kg,
-                          AS_SHADER_DATA(kernel_split_state_buffer_addr_space(
-                                             sd_DL_shadow, ShaderDataTinyStorage) +
-                                         ray_index),
+                          AS_SHADER_DATA(&kernel_split_state_buffer_addr_space(
+                              sd_DL_shadow, ShaderDataTinyStorage)[ray_index]),
                           state,
                           rng_hash,
                           sample,
                           ray);
 #ifdef __SUBSURFACE__
           kernel_path_subsurface_init_indirect(
-              kernel_split_state_buffer(ss_rays, SubsurfaceIndirectRays) + ray_index);
+              &kernel_split_state_buffer(ss_rays, SubsurfaceIndirectRays)[ray_index]);
 #endif
           ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);
           enqueue_flag = 1;

@@ -43,7 +43,7 @@ ccl_device void kernel_indirect_background(KernelGlobals *kg
 
     if (ray_index != QUEUE_EMPTY_SLOT) {
       if (IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE)) {
-        ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
+        ccl_global PathState *state = &kernel_split_state_buffer(path_state, PathState)[ray_index];
         if (path_state_ao_bounce(kg, state)) {
           kernel_split_path_end(kg, ray_state_buffer, ray_index);
         }
@@ -63,9 +63,9 @@ ccl_device void kernel_indirect_background(KernelGlobals *kg
   }
 
   if (IS_STATE(ray_state_buffer, ray_index, RAY_HIT_BACKGROUND)) {
-    ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
-    PathRadiance *L = kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) + ray_index;
-    ccl_global Ray *ray = kernel_split_state_buffer(ray, Ray) + ray_index;
+    ccl_global PathState *state = &kernel_split_state_buffer(path_state, PathState)[ray_index];
+    PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index];
+    ccl_global Ray *ray = &kernel_split_state_buffer(ray, Ray)[ray_index];
     float3 throughput = kernel_split_state_buffer(throughput, float3)[ray_index];
     ShaderData *sd = kernel_split_sd(sd, ray_index);
     uint buffer_offset = kernel_split_state_buffer(buffer_offset, uint)[ray_index];

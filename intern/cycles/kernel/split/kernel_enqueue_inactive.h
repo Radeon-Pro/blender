@@ -20,9 +20,9 @@ ccl_device void kernel_enqueue_inactive(KernelGlobals *kg,
 #ifdef __KERNEL_OPENCL__
                                         ccl_constant KernelData *data,
                                         ccl_global void *split_data_buffer,
-                                        ccl_global char *ray_states,
+                                        ccl_global char *ray_state,
                                         KERNEL_BUFFER_PARAMS,
-                                        ccl_global int *queue_indices,
+                                        ccl_global int *queue_index,
                                         ccl_global char *use_queues_flag,
                                         ccl_global unsigned int *work_pools,
                                         ccl_global float *buffer,
@@ -39,7 +39,7 @@ ccl_device void kernel_enqueue_inactive(KernelGlobals *kg,
   int ray_index = ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0);
 
   char enqueue_flag = 0;
-  if (IS_STATE(kernel_split_state.ray_state, ray_index, RAY_INACTIVE)) {
+  if (IS_STATE(ray_state_buffer, ray_index, RAY_INACTIVE)) {
     enqueue_flag = 1;
   }
 
@@ -48,7 +48,7 @@ ccl_device void kernel_enqueue_inactive(KernelGlobals *kg,
                           enqueue_flag,
                           kernel_split_params.queue_size,
                           local_queue_atomics,
-                          kernel_split_state.queue_data,
+                          kernel_split_state_buffer(queue_data, int),
                           kernel_split_params.queue_index);
 #endif /* __BRANCHED_PATH__ */
 }

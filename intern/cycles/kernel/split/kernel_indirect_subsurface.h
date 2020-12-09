@@ -56,15 +56,14 @@ ccl_device void kernel_indirect_subsurface(KernelGlobals *kg
     return;
   }
 
-  ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
-  PathRadiance *L = kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) + ray_index;
-  ccl_global Ray *ray = kernel_split_state_buffer(ray, Ray) + ray_index;
-  ccl_global float3 *throughput = kernel_split_state_buffer(throughput, float3) + ray_index;
+  ccl_global PathState *state = &kernel_split_state_buffer(path_state, PathState)[ray_index];
+  PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index];
+  ccl_global Ray *ray = &kernel_split_state_buffer(ray, Ray)[ray_index];
+  ccl_global float3 *throughput = &kernel_split_state_buffer(throughput, float3)[ray_index];
 
   if (IS_STATE(ray_state_buffer, ray_index, RAY_UPDATE_BUFFER)) {
-    ccl_addr_space SubsurfaceIndirectRays *ss_indirect = kernel_split_state_buffer_addr_space(
-                                                             ss_rays, SubsurfaceIndirectRays) +
-                                                         ray_index;
+    ccl_addr_space SubsurfaceIndirectRays *ss_indirect = &kernel_split_state_buffer_addr_space(
+        ss_rays, SubsurfaceIndirectRays)[ray_index];
 
     /* Trace indirect subsurface rays by restarting the loop. this uses less
      * stack memory than invoking kernel_path_indirect.

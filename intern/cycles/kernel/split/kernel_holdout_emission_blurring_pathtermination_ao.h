@@ -94,12 +94,12 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(
       uint buffer_offset = kernel_split_state_buffer(buffer_offset, uint)[ray_index];
       ccl_global float *buffer = kernel_split_params.tile.buffer + buffer_offset;
 
-      ccl_global Ray *ray = kernel_split_state_buffer(ray, Ray) + ray_index;
-      ShaderData *emission_sd = AS_SHADER_DATA(kernel_split_state_buffer_addr_space(sd_DL_shadow, ShaderDataTinyStorage) + ray_index);
-      PathRadiance *L = kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) + ray_index;
+      ccl_global Ray *ray = &kernel_split_state_buffer(ray, Ray)[ray_index];
+      ShaderData *emission_sd = AS_SHADER_DATA(&kernel_split_state_buffer_addr_space(sd_DL_shadow, ShaderDataTinyStorage)[ray_index]);
+      PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index];
 
       throughput = kernel_split_state_buffer(throughput, float3)[ray_index];
-      state = kernel_split_state_buffer(path_state, PathState) + ray_index;
+      state = &kernel_split_state_buffer(path_state, PathState)[ray_index];
 
       if (!kernel_path_shader_apply(kg, sd, state, ray, throughput, emission_sd, L, buffer)) {
         kernel_split_path_end(kg, ray_state_buffer, ray_index);
@@ -128,7 +128,7 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(
 
 #ifdef __DENOISING_FEATURES__
       if (IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE)) {
-        PathRadiance *L = kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) + ray_index;
+        PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index];
         kernel_update_denoising_features(kg, sd, state, L);
       }
 #endif

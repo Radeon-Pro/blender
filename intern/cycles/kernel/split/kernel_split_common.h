@@ -63,9 +63,8 @@ ccl_device_inline void kernel_split_path_end(KernelGlobals *kg,
 {
 #ifdef __BRANCHED_PATH__
 #  ifdef __SUBSURFACE__
-  ccl_addr_space SubsurfaceIndirectRays *ss_indirect = kernel_split_state_buffer(
-                                                           ss_rays, SubsurfaceIndirectRays) +
-                                                       ray_index;
+  ccl_addr_space SubsurfaceIndirectRays *ss_indirect = &kernel_split_state_buffer(
+      ss_rays, SubsurfaceIndirectRays)[ray_index];
 
   if (ss_indirect->num_rays) {
     ASSIGN_RAY_STATE(ray_state, ray_index, RAY_UPDATE_BUFFER);
@@ -76,9 +75,9 @@ ccl_device_inline void kernel_split_path_end(KernelGlobals *kg,
     int orig_ray =
         kernel_split_state_buffer(branched_state, SplitBranchedState)[ray_index].original_ray;
 
-    PathRadiance *L = kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) + ray_index;
-    PathRadiance *orig_ray_L = kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) +
-                               orig_ray;
+    PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index];
+    PathRadiance *orig_ray_L = &kernel_split_state_buffer_addr_space(path_radiance,
+                                                                     PathRadiance)[orig_ray];
 
     path_radiance_sum_indirect(L);
     path_radiance_accum_sample(orig_ray_L, L);

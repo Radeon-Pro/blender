@@ -64,22 +64,22 @@ ccl_device void kernel_path_init(KernelGlobals *kg
 
   /* Initialize random numbers and ray. */
   uint rng_hash;
-  kernel_path_trace_setup(kg, sample, x, y, &rng_hash, kernel_split_state_buffer(ray, Ray) + ray_index);
+  kernel_path_trace_setup(kg, sample, x, y, &rng_hash, &kernel_split_state_buffer(ray, Ray)[ray_index]);
 
   if (kernel_split_state_buffer(ray, Ray)[ray_index].t != 0.0f) {
     /* Initialize throughput, path radiance, Ray, PathState;
      * These rays proceed with path-iteration.
      */
     kernel_split_state_buffer(throughput, float3)[ray_index] = make_float3(1.0f, 1.0f, 1.0f);
-    path_radiance_init(kg, kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) + ray_index);
+    path_radiance_init(kg, &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index]);
     path_state_init(kg,
-                    AS_SHADER_DATA(kernel_split_state_buffer_addr_space(sd_DL_shadow, ShaderDataTinyStorage) + ray_index),
-                    kernel_split_state_buffer(path_state, PathState) + ray_index,
+                    AS_SHADER_DATA(&kernel_split_state_buffer_addr_space(sd_DL_shadow, ShaderDataTinyStorage)[ray_index]),
+                    &kernel_split_state_buffer(path_state, PathState)[ray_index],
                     rng_hash,
                     sample,
-                    kernel_split_state_buffer(ray, Ray) + ray_index);
+                    &kernel_split_state_buffer(ray, Ray)[ray_index]);
 #ifdef __SUBSURFACE__
-    kernel_path_subsurface_init_indirect(kernel_split_state_buffer(ss_rays, SubsurfaceIndirectRays) + ray_index);
+    kernel_path_subsurface_init_indirect(&kernel_split_state_buffer(ss_rays, SubsurfaceIndirectRays)[ray_index]);
 #endif
   }
   else {

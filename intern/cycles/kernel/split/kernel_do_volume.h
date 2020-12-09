@@ -18,22 +18,32 @@ CCL_NAMESPACE_BEGIN
 
 #if defined(__BRANCHED_PATH__) && defined(__VOLUME__)
 
-ccl_device_inline void kernel_split_branched_path_volume_indirect_light_init(KernelGlobals *kg,
-                                                                             int ray_index)
+ccl_device_inline void kernel_split_branched_path_volume_indirect_light_init(
+    KernelGlobals *kg,
+#  ifdef __KERNEL_OPENCL__
+    ccl_global char *ray_state,
+#  endif
+    int ray_index)
 {
   kernel_split_branched_path_indirect_loop_init(kg, ray_index);
 
-  ADD_RAY_FLAG(kernel_split_state.ray_state, ray_index, RAY_BRANCHED_VOLUME_INDIRECT);
+  ADD_RAY_FLAG(ray_state_buffer, ray_index, RAY_BRANCHED_VOLUME_INDIRECT);
 }
 
-ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(KernelGlobals *kg,
-                                                                               int ray_index)
+ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(
+    KernelGlobals *kg,
+#  ifdef __KERNEL_OPENCL__
+    ccl_global void *split_data_buffer,
+#  endif
+    int ray_index)
 {
-  SplitBranchedState *branched_state = &kernel_split_state.branched_state[ray_index];
+  SplitBranchedState *branched_state = &kernel_split_state_buffer(branched_state,
+                                                                  SplitBranchedState)[ray_index];
 
   ShaderData *sd = kernel_split_sd(sd, ray_index);
-  PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
-  ShaderData *emission_sd = AS_SHADER_DATA(&kernel_split_state.sd_DL_shadow[ray_index]);
+  PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index];
+  ShaderData *emission_sd = AS_SHADER_DATA(
+      &kernel_split_state_buffer_addr_space(sd_DL_shadow, ShaderDataTinyStorage)[ray_index]);
 
   /* GPU: no decoupled ray marching, scatter probalistically */
   int num_samples = kernel_data.integrator.volume_samples;
@@ -47,13 +57,13 @@ ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(K
   float step_size = volume_stack_step_size(kg, branched_state->path_state.volume_stack);
 
   for (int j = branched_state->next_sample; j < num_samples; j++) {
-    ccl_global PathState *ps = &kernel_split_state.path_state[ray_index];
+    ccl_global PathState *ps = &kernel_split_state_buffer(path_state, PathState)[ray_index];
     *ps = branched_state->path_state;
 
-    ccl_global Ray *pray = &kernel_split_state.ray[ray_index];
+    ccl_global Ray *pray = &kernel_split_state_buffer(ray, Ray)[ray_index];
     *pray = branched_state->ray;
 
-    ccl_global float3 *tp = &kernel_split_state.throughput[ray_index];
+    ccl_global float3 *tp = &kernel_split_state_buffer(throughput, float)[ray_index];
     *tp = branched_state->throughput * num_samples_inv;
 
     /* branch RNG state */
@@ -104,17 +114,32 @@ ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(K
   kernel_split_branched_path_indirect_loop_end(kg, ray_index);
 
   /* todo: avoid this calculation using decoupled ray marching */
-  float3 throughput = kernel_split_state.throughput[ray_index];
-  kernel_volume_shadow(
-      kg, emission_sd, &kernel_split_state.path_state[ray_index], &volume_ray, &throughput);
-  kernel_split_state.throughput[ray_index] = throughput;
+  float3 throughput = kernel_split_state_buffer(throughput, float3)[ray_index];
+  kernel_volume_shadow(kg,
+                       emission_sd,
+                       &kernel_split_state_buffer_addr_space(path_state, PathState)[ray_index],
+                       &volume_ray,
+                       &throughput);
+  kernel_split_state_buffer(throughput, float3)[ray_index] = throughput;
 
   return false;
 }
 
 #endif /* __BRANCHED_PATH__ && __VOLUME__ */
 
-ccl_device void kernel_do_volume(KernelGlobals *kg)
+ccl_device void kernel_do_volume(KernelGlobals *kg
+#ifdef __KERNEL_OPENCL__
+                                 ,
+                                 ccl_constant KernelData *data,
+                                 ccl_global void *split_data_buffer,
+                                 ccl_global char *ray_state,
+                                 KERNEL_BUFFER_PARAMS,
+                                 ccl_global int *queue_index,
+                                 ccl_global char *use_queues_flag,
+                                 ccl_global unsigned int *work_pools,
+                                 ccl_global float *buffer
+#endif
+)
 {
 #ifdef __VOLUME__
   /* We will empty this queue in this kernel. */
@@ -131,25 +156,24 @@ ccl_device void kernel_do_volume(KernelGlobals *kg)
     ray_index = get_ray_index(kg,
                               ray_index,
                               QUEUE_ACTIVE_AND_REGENERATED_RAYS,
-                              kernel_split_state.queue_data,
+                              kernel_split_state_buffer(queue_data, int),
                               kernel_split_params.queue_size,
                               1);
   }
 
-  ccl_global char *ray_state = kernel_split_state.ray_state;
+  PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index];
+  ccl_global PathState *state = &kernel_split_state_buffer(path_state, PathState)[ray_index];
 
-  PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
-  ccl_global PathState *state = &kernel_split_state.path_state[ray_index];
-
-  if (IS_STATE(ray_state, ray_index, RAY_ACTIVE) ||
-      IS_STATE(ray_state, ray_index, RAY_HIT_BACKGROUND)) {
-    ccl_global float3 *throughput = &kernel_split_state.throughput[ray_index];
-    ccl_global Ray *ray = &kernel_split_state.ray[ray_index];
-    ccl_global Intersection *isect = &kernel_split_state.isect[ray_index];
+  if (IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE) ||
+      IS_STATE(ray_state_buffer, ray_index, RAY_HIT_BACKGROUND)) {
+    ccl_global float3 *throughput = &kernel_split_state_buffer(throughput, float3)[ray_index];
+    ccl_global Ray *ray = &kernel_split_state_buffer(ray, Ray)[ray_index];
+    ccl_global Intersection *isect = &kernel_split_state_buffer(isect, Intersection)[ray_index];
     ShaderData *sd = kernel_split_sd(sd, ray_index);
-    ShaderData *emission_sd = AS_SHADER_DATA(&kernel_split_state.sd_DL_shadow[ray_index]);
+    ShaderData *emission_sd = AS_SHADER_DATA(
+        &kernel_split_state_buffer_addr_space(sd_DL_shadow, ShaderDataTinyStorage)[ray_index]);
 
-    bool hit = !IS_STATE(ray_state, ray_index, RAY_HIT_BACKGROUND);
+    bool hit = !IS_STATE(ray_state_buffer, ray_index, RAY_HIT_BACKGROUND);
 
     /* Sanitize volume stack. */
     if (!hit) {
@@ -162,7 +186,7 @@ ccl_device void kernel_do_volume(KernelGlobals *kg)
 
 #  ifdef __BRANCHED_PATH__
       if (!kernel_data.integrator.branched ||
-          IS_FLAG(ray_state, ray_index, RAY_BRANCHED_INDIRECT)) {
+          IS_FLAG(ray_state_buffer, ray_index, RAY_BRANCHED_INDIRECT)) {
 #  endif /* __BRANCHED_PATH__ */
         float step_size = volume_stack_step_size(kg, state->volume_stack);
 
@@ -178,10 +202,10 @@ ccl_device void kernel_do_volume(KernelGlobals *kg)
 
             /* indirect light bounce */
             if (kernel_path_volume_bounce(kg, sd, throughput, state, &L->state, ray)) {
-              ASSIGN_RAY_STATE(ray_state, ray_index, RAY_REGENERATED);
+              ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);
             }
             else {
-              kernel_split_path_end(kg, ray_state, ray_index);
+              kernel_split_path_end(kg, ray_state_buffer, ray_index);
             }
           }
 #  endif /* __VOLUME_SCATTER__ */
@@ -190,10 +214,20 @@ ccl_device void kernel_do_volume(KernelGlobals *kg)
 #  ifdef __BRANCHED_PATH__
       }
       else {
-        kernel_split_branched_path_volume_indirect_light_init(kg, ray_index);
+        kernel_split_branched_path_volume_indirect_light_init(
+          kg,
+#    ifdef __KERNEL_OPENCL__
+          ray_state_buffer,
+#    endif
+          ray_index);
 
-        if (kernel_split_branched_path_volume_indirect_light_iter(kg, ray_index)) {
-          ASSIGN_RAY_STATE(ray_state, ray_index, RAY_REGENERATED);
+        if (kernel_split_branched_path_volume_indirect_light_iter(
+          kg,
+#    ifdef __KERNEL_OPENCL__
+          ray_state_buffer,
+#    endif
+          ray_index)) {
+          ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);
         }
       }
 #  endif /* __BRANCHED_PATH__ */
@@ -205,18 +239,25 @@ ccl_device void kernel_do_volume(KernelGlobals *kg)
   ray_index = get_ray_index(kg,
                             ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0),
                             QUEUE_VOLUME_INDIRECT_ITER,
-                            kernel_split_state.queue_data,
+                            kernel_split_state_buffer(queue_data, int),
                             kernel_split_params.queue_size,
                             1);
 
-  if (IS_STATE(ray_state, ray_index, RAY_VOLUME_INDIRECT_NEXT_ITER)) {
+  if (IS_STATE(ray_state_buffer, ray_index, RAY_VOLUME_INDIRECT_NEXT_ITER)) {
     /* for render passes, sum and reset indirect light pass variables
      * for the next samples */
-    path_radiance_sum_indirect(&kernel_split_state.path_radiance[ray_index]);
-    path_radiance_reset_indirect(&kernel_split_state.path_radiance[ray_index]);
+    path_radiance_sum_indirect(
+        &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index]);
+    path_radiance_reset_indirect(
+        &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index]);
 
-    if (kernel_split_branched_path_volume_indirect_light_iter(kg, ray_index)) {
-      ASSIGN_RAY_STATE(ray_state, ray_index, RAY_REGENERATED);
+    if (kernel_split_branched_path_volume_indirect_light_iter(
+      kg,
+#    ifdef __KERNEL_OPENCL__
+      ray_state_buffer,
+#    endif
+      ray_index)) {
+      ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);
     }
   }
 #  endif /* __BRANCHED_PATH__ */

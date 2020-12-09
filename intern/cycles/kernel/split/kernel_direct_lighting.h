@@ -68,7 +68,7 @@ ccl_device void kernel_direct_lighting(KernelGlobals *kg,
                             0);
 
   if (IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE)) {
-    ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
+    ccl_global PathState *state = &kernel_split_state_buffer(path_state, PathState)[ray_index];
     ShaderData *sd = kernel_split_sd(sd, ray_index);
 
     /* direct lighting */
@@ -104,8 +104,7 @@ ccl_device void kernel_direct_lighting(KernelGlobals *kg,
         bool is_lamp;
         if (direct_emission(kg,
                             sd,
-                AS_SHADER_DATA(kernel_split_state_buffer_addr_space(sd_DL_shadow, ShaderDataTinyStorage) +
-                               ray_index),
+                AS_SHADER_DATA(&kernel_split_state_buffer_addr_space(sd_DL_shadow, ShaderDataTinyStorage)[ray_index]),
                             &ls,
                             state,
                             &light_ray,

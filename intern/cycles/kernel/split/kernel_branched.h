@@ -22,16 +22,18 @@ CCL_NAMESPACE_BEGIN
 ccl_device_inline void kernel_split_branched_path_indirect_loop_init(KernelGlobals *kg,
                                                                      int ray_index)
 {
-  SplitBranchedState *branched_state = &kernel_split_state.branched_state[ray_index];
+  SplitBranchedState *branched_state = &kernel_split_state_buffer(
+      branched_state, SplitBranchedState)[ray_index];
 
   /* save a copy of the state to restore later */
-#  define BRANCHED_STORE(name) branched_state->name = kernel_split_state.name[ray_index];
+#  define BRANCHED_STORE(name, type) \
+    branched_state->name = kernel_split_state_buffer(name, type)[ray_index]
 
-  BRANCHED_STORE(path_state);
-  BRANCHED_STORE(throughput);
-  BRANCHED_STORE(ray);
-  BRANCHED_STORE(isect);
-  BRANCHED_STORE(ray_state);
+  BRANCHED_STORE(path_state, PathState);
+  BRANCHED_STORE(throughput, float3);
+  BRANCHED_STORE(ray, Ray);
+  BRANCHED_STORE(isect, Intersection);
+  branched_state->ray_state = ray_state_buffer[ray_index];
 
   *kernel_split_sd(branched_state_sd, ray_index) = *kernel_split_sd(sd, ray_index);
   for (int i = 0; i < kernel_split_sd(branched_state_sd, ray_index)->num_closure; i++) {
@@ -50,16 +52,18 @@ ccl_device_inline void kernel_split_branched_path_indirect_loop_init(KernelGloba
 ccl_device_inline void kernel_split_branched_path_indirect_loop_end(KernelGlobals *kg,
                                                                     int ray_index)
 {
-  SplitBranchedState *branched_state = &kernel_split_state.branched_state[ray_index];
+  SplitBranchedState *branched_state = &kernel_split_state_buffer(
+      branched_state, SplitBranchedState)[ray_index];
 
   /* restore state */
-#  define BRANCHED_RESTORE(name) kernel_split_state.name[ray_index] = branched_state->name;
+#  define BRANCHED_RESTORE(name, type) \
+    kernel_split_state_buffer(name, type)[ray_index] = branched_state->name
 
-  BRANCHED_RESTORE(path_state);
-  BRANCHED_RESTORE(throughput);
-  BRANCHED_RESTORE(ray);
-  BRANCHED_RESTORE(isect);
-  BRANCHED_RESTORE(ray_state);
+  BRANCHED_RESTORE(path_state, PathState);
+  BRANCHED_RESTORE(throughput, float3);
+  BRANCHED_RESTORE(ray, Ray);
+  BRANCHED_RESTORE(isect, Intersection);
+  ray_state_buffer[ray_index] = branched_state->ray_state;
 
   *kernel_split_sd(sd, ray_index) = *kernel_split_sd(branched_state_sd, ray_index);
   for (int i = 0; i < kernel_split_sd(branched_state_sd, ray_index)->num_closure; i++) {
@@ -70,26 +74,24 @@ ccl_device_inline void kernel_split_branched_path_indirect_loop_end(KernelGlobal
 #  undef BRANCHED_RESTORE
 
   /* leave indirect loop */
-  REMOVE_RAY_FLAG(kernel_split_state.ray_state, ray_index, RAY_BRANCHED_INDIRECT);
+  REMOVE_RAY_FLAG(ray_state_buffer, ray_index, RAY_BRANCHED_INDIRECT);
 }
 
 ccl_device_inline bool kernel_split_branched_indirect_start_shared(KernelGlobals *kg,
                                                                    int ray_index)
 {
-  ccl_global char *ray_state = kernel_split_state.ray_state;
-
   int inactive_ray = dequeue_ray_index(QUEUE_INACTIVE_RAYS,
-                                       kernel_split_state.queue_data,
+                                       kernel_split_state_buffer(queue_data, int),
                                        kernel_split_params.queue_size,
                                        kernel_split_params.queue_index);
 
-  if (!IS_STATE(ray_state, inactive_ray, RAY_INACTIVE)) {
+  if (!IS_STATE(ray_state_buffer, inactive_ray, RAY_INACTIVE)) {
     return false;
   }
 
 #  define SPLIT_DATA_ENTRY(type, name, num) \
     if (num) { \
-      kernel_split_state.name[inactive_ray] = kernel_split_state.name[ray_index]; \
+      kernel_split_state_buffer(name, type)[inactive_ray] = kernel_split_state_buffer(name, type)[ray_index]; \
     }
   SPLIT_DATA_ENTRIES_BRANCHED_SHARED
 #  undef SPLIT_DATA_ENTRY
@@ -99,22 +101,23 @@ ccl_device_inline bool kernel_split_branched_indirect_start_shared(KernelGlobals
     kernel_split_sd(sd, inactive_ray)->closure[i] = kernel_split_sd(sd, ray_index)->closure[i];
   }
 
-  kernel_split_state.branched_state[inactive_ray].shared_sample_count = 0;
-  kernel_split_state.branched_state[inactive_ray].original_ray = ray_index;
-  kernel_split_state.branched_state[inactive_ray].waiting_on_shared_samples = false;
+  kernel_split_state_buffer(branched_state, SplitBranchedState)[inactive_ray].shared_sample_count = 0;
+  kernel_split_state_buffer(branched_state, SplitBranchedState)[inactive_ray].original_ray = ray_index;
+  kernel_split_state_buffer(branched_state, SplitBranchedState)[inactive_ray].waiting_on_shared_samples = false;
 
-  PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
-  PathRadiance *inactive_L = &kernel_split_state.path_radiance[inactive_ray];
+  PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index];
+  PathRadiance *inactive_L = &kernel_split_state_buffer_addr_space(path_radiance,
+                                                                   PathRadiance)[inactive_ray];
 
   path_radiance_init(kg, inactive_L);
   path_radiance_copy_indirect(inactive_L, L);
 
-  ray_state[inactive_ray] = RAY_REGENERATED;
-  ADD_RAY_FLAG(ray_state, inactive_ray, RAY_BRANCHED_INDIRECT_SHARED);
-  ADD_RAY_FLAG(ray_state, inactive_ray, IS_FLAG(ray_state, ray_index, RAY_BRANCHED_INDIRECT));
+  ray_state_buffer[inactive_ray] = RAY_REGENERATED;
+  ADD_RAY_FLAG(ray_state_buffer, inactive_ray, RAY_BRANCHED_INDIRECT_SHARED);
+  ADD_RAY_FLAG(ray_state_buffer, inactive_ray, IS_FLAG(ray_state_buffer, ray_index, RAY_BRANCHED_INDIRECT));
 
   atomic_fetch_and_inc_uint32(
-      (ccl_global uint *)&kernel_split_state.branched_state[ray_index].shared_sample_count);
+      (ccl_global uint *)&kernel_split_state_buffer(branched_state, SplitBranchedState)[ray_index].shared_sample_count);
 
   return true;
 }
@@ -128,12 +131,13 @@ ccl_device_noinline bool kernel_split_branched_path_surface_indirect_light_iter(
     bool reset_path_state,
     bool wait_for_shared)
 {
-  SplitBranchedState *branched_state = &kernel_split_state.branched_state[ray_index];
+  SplitBranchedState *branched_state = &kernel_split_state_buffer(branched_state,
+                                                                  SplitBranchedState)[ray_index];
 
   ShaderData *sd = saved_sd;
-  PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
+  PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index];
   float3 throughput = branched_state->throughput;
-  ccl_global PathState *ps = &kernel_split_state.path_state[ray_index];
+  ccl_global PathState *ps = &kernel_split_state_buffer(path_state, PathState)[ray_index];
 
   float sum_sample_weight = 0.0f;
 #  ifdef __DENOISING_FEATURES__
@@ -185,10 +189,10 @@ ccl_device_noinline bool kernel_split_branched_path_surface_indirect_light_iter(
 
       ps->rng_hash = cmj_hash(branched_state->path_state.rng_hash, i);
 
-      ccl_global float3 *tp = &kernel_split_state.throughput[ray_index];
+      ccl_global float3 *tp = &kernel_split_state_buffer(throughput, float3)[ray_index];
       *tp = throughput;
 
-      ccl_global Ray *bsdf_ray = &kernel_split_state.ray[ray_index];
+      ccl_global Ray *bsdf_ray = &kernel_split_state_buffer(ray, Ray)[ray_index];
 
       if (!kernel_branched_path_surface_bounce(
               kg, sd, sc, j, num_samples, tp, ps, &L->state, bsdf_ray, sum_sample_weight)) {

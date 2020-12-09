@@ -73,9 +73,9 @@ ccl_device void kernel_scene_intersect(KernelGlobals *kg
     return;
   }
 
-  ccl_global PathState *state = kernel_split_state_buffer(path_state, PathState) + ray_index;
+  ccl_global PathState *state = &kernel_split_state_buffer(path_state, PathState)[ray_index];
   Ray ray = kernel_split_state_buffer(ray, Ray)[ray_index];
-  PathRadiance *L = kernel_split_state_buffer_addr_space(path_radiance, PathRadiance) + ray_index;
+  PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index];
 
   Intersection isect;
   bool hit = kernel_path_scene_intersect(kg, state, &ray, &isect, L);

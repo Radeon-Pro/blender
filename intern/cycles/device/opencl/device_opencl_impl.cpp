@@ -380,8 +380,6 @@ class OpenCLSplitKernelFunction : public SplitKernelFunction {
       return false;
     }
 
-    device->ciErr = clFinish(device->cqCommandQueue);
-
     return true;
   }
 };
