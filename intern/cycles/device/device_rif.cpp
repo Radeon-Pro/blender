@@ -76,10 +76,23 @@ FARPROC WINAPI RIFDliNotifyHook(unsigned dliNotify, PDelayLoadInfo pdli)
 {
   if (dliNotify == dliNotePreLoadLibrary)
     return (FARPROC)LoadRIFDll(pdli->szDll);
+  else if (dliNotify == dliFailLoadLib) {
+    VLOG(1) << "RIF initialization failed. Module could not be loaded";
+    MessageBoxA(
+        NULL, "RIF initialization failed. Module could not be loaded.", "Load RIF failed", 0);
+  }
+  else if (dliNotify == dliFailGetProc) {
+    VLOG(1) << "RIF initialization failed. Could not find procedure in module";
+    MessageBoxA(NULL,
+                "RIF initialization failed. Could not find procedure in module.",
+                "Load RIF failed",
+                0);
+  }
   return NULL;
 }
 
 extern "C" PfnDliHook __pfnDliNotifyHook2 = RIFDliNotifyHook;
+extern "C" PfnDliHook __pfnDliFailureHook2 = RIFDliNotifyHook;
 
 class RIFDevice : public OpenCLDevice {
 
