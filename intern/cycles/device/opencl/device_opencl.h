@@ -360,6 +360,9 @@ class OpenCLDevice : public Device {
     OpenCLProgram program_direct_lighting;
     OpenCLProgram program_shadow_blocked_ao;
     OpenCLProgram program_shadow_blocked_dl;
+#  ifdef WITH_AMD_RT_HWI
+    OpenCLProgram program_scene_intersect;
+#  endif
 
     OpenCLSplitPrograms(OpenCLDevice *device);
     ~OpenCLSplitPrograms();
@@ -485,7 +488,15 @@ class OpenCLDevice : public Device {
 
   virtual BVHLayoutMask get_bvh_layout_mask() const
   {
+#  ifdef WITH_AMD_RT_HWI
+
+    if (amd_hw_rt)
+      return BVH_LAYOUT_AMD_RT;
+    else
+      return BVH_LAYOUT_BVH2;
+#  else
     return BVH_LAYOUT_BVH2;
+#  endif
   }
 
   virtual bool show_samples() const
@@ -643,6 +654,10 @@ class OpenCLDevice : public Device {
   TexturesMap textures;
 
   bool textures_need_update;
+
+#  ifdef WITH_AMD_RT_HWI
+  bool amd_hw_rt;
+#  endif
 
  protected:
   void flush_texture_buffers();

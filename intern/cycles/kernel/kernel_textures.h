@@ -19,6 +19,9 @@
 #endif
 
 /* bvh */
+KERNEL_TEX(char, __bvh_amd)
+KERNEL_TEX(uint2, __bvh_amd_offset)
+
 KERNEL_TEX(float4, __bvh_nodes)
 KERNEL_TEX(float4, __bvh_leaf_nodes)
 KERNEL_TEX(float4, __prim_tri_verts)

@@ -14,6 +14,7 @@ set(SRC
   bvh_embree.cpp
   bvh_node.cpp
   bvh_optix.cpp
+  bvh_amd.cpp
   bvh_sort.cpp
   bvh_split.cpp
   bvh_unaligned.cpp
@@ -27,6 +28,7 @@ set(SRC_HEADERS
   bvh_embree.h
   bvh_node.h
   bvh_optix.h
+  bvh_amd.h
   bvh_params.h
   bvh_sort.h
   bvh_split.h

@@ -51,6 +51,8 @@ DeviceScene::DeviceScene(Device *device)
       prim_index(device, "__prim_index", MEM_GLOBAL),
       prim_object(device, "__prim_object", MEM_GLOBAL),
       prim_time(device, "__prim_time", MEM_GLOBAL),
+      bvh_amd(device, "__bvh_amd", MEM_GLOBAL),
+      bvh_amd_offset(device, "__bvh_amd_offset", MEM_GLOBAL),
       tri_shader(device, "__tri_shader", MEM_GLOBAL),
       tri_vnormal(device, "__tri_vnormal", MEM_GLOBAL),
       tri_vindex(device, "__tri_vindex", MEM_GLOBAL),

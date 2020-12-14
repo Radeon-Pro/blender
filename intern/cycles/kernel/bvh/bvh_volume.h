@@ -17,6 +17,10 @@
  * limitations under the License.
  */
 
+#ifdef __AMD_RT_HWI__
+#  include "kernel/bvh/amd_bvh_volume.h"
+#endif
+
 #if BVH_FEATURE(BVH_HAIR)
 #  define NODE_INTERSECT bvh_node_intersect
 #else
@@ -227,7 +231,11 @@ ccl_device_inline bool BVH_FUNCTION_NAME(KernelGlobals *kg,
                                          Intersection *isect,
                                          const uint visibility)
 {
+#ifdef __AMD_RT_HWI__
+  return BVH_FUNCTION_FULL_NAME(ABVH)(kg, ray, isect, visibility);
+#else
   return BVH_FUNCTION_FULL_NAME(BVH)(kg, ray, isect, visibility);
+#endif
 }
 
 #undef BVH_FUNCTION_NAME

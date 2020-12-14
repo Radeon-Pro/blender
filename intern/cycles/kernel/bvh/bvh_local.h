@@ -16,6 +16,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifdef __AMD_RT_HWI__
+#  include "kernel/bvh/amd_bvh_local.h"
+#endif
 
 #if BVH_FEATURE(BVH_HAIR)
 #  define NODE_INTERSECT bvh_node_intersect
@@ -203,7 +206,11 @@ ccl_device_inline bool BVH_FUNCTION_NAME(KernelGlobals *kg,
                                          uint *lcg_state,
                                          int max_hits)
 {
+#ifdef __AMD_RT_HWI__
+  return BVH_FUNCTION_FULL_NAME(ABVH)(kg, ray, local_isect, local_object, lcg_state, max_hits);
+#else
   return BVH_FUNCTION_FULL_NAME(BVH)(kg, ray, local_isect, local_object, lcg_state, max_hits);
+#endif
 }
 
 #undef BVH_FUNCTION_NAME

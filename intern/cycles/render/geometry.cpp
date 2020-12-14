@@ -1094,7 +1094,9 @@ void GeometryManager::device_update_bvh(Device *device,
   dscene->data.bvh.use_bvh_steps = (scene->params.num_bvh_time_steps != 0);
   dscene->data.bvh.curve_subdivisions = scene->params.curve_subdivisions();
 
+
   bvh->copy_to_device(progress, dscene);
+
 
   delete bvh;
 }
@@ -1421,6 +1423,8 @@ void GeometryManager::device_free(Device *device, DeviceScene *dscene)
 #endif
 
   dscene->bvh_nodes.free();
+  dscene->bvh_amd.free();
+  dscene->bvh_amd_offset.free();
   dscene->bvh_leaf_nodes.free();
   dscene->object_node.free();
   dscene->prim_tri_verts.free();

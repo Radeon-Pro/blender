@@ -165,7 +165,7 @@
 #define NULL 0
 
 /* enable extensions */
-#ifdef __KERNEL_CL_KHR_FP16__
+#if defined(__KERNEL_CL_KHR_FP16__) || defined(__AMD_RT_HWI__)
 #  pragma OPENCL EXTENSION cl_khr_fp16 : enable
 #endif
 

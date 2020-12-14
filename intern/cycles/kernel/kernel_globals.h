@@ -159,6 +159,11 @@ typedef ccl_addr_space struct KernelGlobals {
   SplitData split_data;
   SplitParams split_param_data;
 #  endif
+
+#  ifdef __AMD_LOCAL
+  __local uint *traversal_stack;
+#  endif
+
 } KernelGlobals;
 
 #  define KERNEL_BUFFER_PARAMS \

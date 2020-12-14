@@ -754,7 +754,11 @@ SceneParams BlenderSync::get_scene_params(BL::Scene &b_scene, bool background)
     params.bvh_type = SceneParams::BVH_DYNAMIC;
 
   params.use_bvh_spatial_split = RNA_boolean_get(&cscene, "debug_use_spatial_splits");
+#ifdef WITH_AMD_RT_HWI
+  params.use_bvh_unaligned_nodes = false;
+#else
   params.use_bvh_unaligned_nodes = RNA_boolean_get(&cscene, "debug_use_hair_bvh");
+#endif
   params.num_bvh_time_steps = RNA_int_get(&cscene, "debug_bvh_time_steps");
 
   PointerRNA csscene = RNA_pointer_get(&b_scene.ptr, "cycles_curves");

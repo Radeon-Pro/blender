@@ -36,6 +36,10 @@ __kernel void KERNEL_NAME_EVAL(kernel_ocl_path_trace,
 #endif
 
   KernelGlobals *kg = (KernelGlobals *)kg_global;
+#if defined(__AMD_LOCAL)
+  __local uint traversal_stack[STACK_SIZE];
+  kg->traversal_stack = &traversal_stack;
+#endif
 
   if (ccl_local_id(0) + ccl_local_id(1) == 0) {
     kg->data = data;

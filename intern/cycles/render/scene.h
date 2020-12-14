@@ -73,6 +73,8 @@ class DeviceScene {
   device_vector<int> prim_index;
   device_vector<int> prim_object;
   device_vector<float2> prim_time;
+  device_vector<char> bvh_amd;
+  device_vector<uint2> bvh_amd_offset;
 
   /* mesh */
   device_vector<uint> tri_shader;
