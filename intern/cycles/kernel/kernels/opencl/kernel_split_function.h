@@ -36,7 +36,6 @@ __kernel void KERNEL_NAME_EVAL(kernel_ocl_path_trace,
 #endif
 
   KernelGlobals *kg = (KernelGlobals *)kg_global;
-#ifndef __KERNEL_OPENCL__
   if (ccl_local_id(0) + ccl_local_id(1) == 0) {
     kg->data = data;
 
@@ -45,15 +44,16 @@ __kernel void KERNEL_NAME_EVAL(kernel_ocl_path_trace,
     kernel_split_params.work_pools = work_pools;
     kernel_split_params.tile.buffer = buffer;
 
+#ifndef __KERNEL_OPENCL__
     split_data_init(kg,
                     &kernel_split_state,
                     ccl_global_size(0) * ccl_global_size(1),
                     split_data_buffer,
                     ray_state);
+#endif
   }
 
   kernel_set_buffer_pointers(kg, KERNEL_BUFFER_ARGS);
-#endif
 
   KERNEL_NAME_EVAL(kernel, KERNEL_NAME)
   (kg
