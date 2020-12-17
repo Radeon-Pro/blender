@@ -326,34 +326,6 @@ struct CachedSplitMemory {
   device_ptr *buffer;
 };
 
-class TotalKernelDispatchGuard {
- public:
-  TotalKernelDispatchGuard()
-  {
-    total_kernel_dispatches = 0;
-  }
-
-  void increment()
-  {
-    ++total_kernel_dispatches;
-  }
-
-  ~TotalKernelDispatchGuard()
-  {
-    std::cout << "Total kernel dispatches: " << total_kernel_dispatches << std::endl;
-    total_kernel_dispatches = 0;
-  }
-
-  static TotalKernelDispatchGuard &get_instance()
-  {
-    static TotalKernelDispatchGuard total_kernel_dispatches_quard;
-    return total_kernel_dispatches_quard;
-  }
-
- private:
-  size_t total_kernel_dispatches;
-};
-
 class OpenCLSplitKernelFunction : public SplitKernelFunction {
  public:
   OpenCLDevice *device;
@@ -408,7 +380,6 @@ class OpenCLSplitKernelFunction : public SplitKernelFunction {
       return false;
     }
 
-    TotalKernelDispatchGuard::get_instance().increment();
     return true;
   }
 };
@@ -544,7 +515,6 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
       return 0;
     }
 
-    TotalKernelDispatchGuard::get_instance().increment();
     return size;
   }
 
@@ -626,7 +596,6 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
     cached_memory.buffer = &rtile.buffer;
     cached_memory.id++;
 
-    TotalKernelDispatchGuard::get_instance().increment();
     return true;
   }
 
@@ -1140,7 +1109,6 @@ void OpenCLDevice::mem_zero_kernel(device_ptr mem, size_t size)
         cqCommandQueue, ckZeroBuffer, 2, NULL, global_size, NULL, 0, NULL, NULL);
     opencl_assert_err(ciErr, "clEnqueueNDRangeKernel");
 
-    TotalKernelDispatchGuard::get_instance().increment();
     d_offset += d_size;
   }
 }
@@ -1358,7 +1326,6 @@ void OpenCLDevice::enqueue_kernel(
   opencl_assert(
       clEnqueueNDRangeKernel(cqCommandQueue, kernel, 2, NULL, global_size, NULL, 0, NULL, NULL));
   opencl_assert(clFlush(cqCommandQueue));
-  TotalKernelDispatchGuard::get_instance().increment();
 }
 
 void OpenCLDevice::set_kernel_arg_mem(cl_kernel kernel, cl_uint *narg, const char *name)
