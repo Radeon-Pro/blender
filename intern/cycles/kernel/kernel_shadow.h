@@ -23,14 +23,16 @@ ccl_addr_space
 #  endif
     ccl_device_inline PathState *
     shadow_blocked_volume_path_state(KernelGlobals *kg,
+#  ifdef __SPLIT_KERNEL__
+                                     ccl_global PathState *state_shadow,
+#  endif
                                      VolumeState *volume_state,
                                      ccl_addr_space PathState *state,
                                      ShaderData *sd,
                                      Ray *ray)
 {
 #  ifdef __SPLIT_KERNEL__
-  ccl_addr_space PathState *ps =
-      &kernel_split_state.state_shadow[ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0)];
+  ccl_addr_space PathState *ps = state_shadow;
 #  else
   PathState *ps = &volume_state->ps;
 #  endif
@@ -140,6 +142,9 @@ ccl_device bool shadow_blocked_opaque(KernelGlobals *kg,
  * Note that hits array should be as big as max_hits+1.
  */
 ccl_device bool shadow_blocked_transparent_all_loop(KernelGlobals *kg,
+#    ifdef __SPLIT_KERNEL__
+                                                    ccl_global PathState *state_shadow,
+#    endif
                                                     ShaderData *sd,
                                                     ShaderData *shadow_sd,
                                                     ccl_addr_space PathState *state,
@@ -174,7 +179,14 @@ ccl_device bool shadow_blocked_transparent_all_loop(KernelGlobals *kg,
 #      ifdef __SPLIT_KERNEL__
     ccl_addr_space
 #      endif
-        PathState *ps = shadow_blocked_volume_path_state(kg, &volume_state, state, sd, ray);
+        PathState *ps = shadow_blocked_volume_path_state(kg,
+#      ifdef __SPLIT_KERNEL__
+                                                         state_shadow,
+#      endif
+                                                         &volume_state,
+                                                         state,
+                                                         sd,
+                                                         ray);
 #    endif
     sort_intersections(hits, num_hits);
     for (int hit = 0; hit < num_hits; hit++, isect++) {
@@ -222,7 +234,14 @@ ccl_device bool shadow_blocked_transparent_all_loop(KernelGlobals *kg,
 #      ifdef __SPLIT_KERNEL__
     ccl_addr_space
 #      endif
-        PathState *ps = shadow_blocked_volume_path_state(kg, &volume_state, state, sd, ray);
+        PathState *ps = shadow_blocked_volume_path_state(kg,
+#      ifdef __SPLIT_KERNEL__
+                                                         state_shadow,
+#      endif
+                                                         &volume_state,
+                                                         state,
+                                                         sd,
+                                                         ray);
     kernel_volume_shadow(kg, shadow_sd, ps, ray, shadow);
   }
 #    endif
@@ -233,6 +252,9 @@ ccl_device bool shadow_blocked_transparent_all_loop(KernelGlobals *kg,
  * loop to help readability of the actual logic.
  */
 ccl_device bool shadow_blocked_transparent_all(KernelGlobals *kg,
+#    ifdef __SPLIT_KERNEL__
+                                               ccl_global PathState *state_shadow,
+#    endif
                                                ShaderData *sd,
                                                ShaderData *shadow_sd,
                                                ccl_addr_space PathState *state,
@@ -268,8 +290,18 @@ ccl_device bool shadow_blocked_transparent_all(KernelGlobals *kg,
   }
 #    endif /* __KERNEL_GPU__ */
   /* Invoke actual traversal. */
-  return shadow_blocked_transparent_all_loop(
-      kg, sd, shadow_sd, state, visibility, ray, hits, max_hits, shadow);
+  return shadow_blocked_transparent_all_loop(kg,
+#    ifdef __SPLIT_KERNEL__
+                                             state_shadow,
+#    endif
+                                             sd,
+                                             shadow_sd,
+                                             state,
+                                             visibility,
+                                             ray,
+                                             hits,
+                                             max_hits,
+                                             shadow);
 }
 #  endif /* __SHADOW_RECORD_ALL__ */
 
@@ -287,6 +319,9 @@ ccl_device bool shadow_blocked_transparent_all(KernelGlobals *kg,
  * which requires some precalculation done.
  */
 ccl_device bool shadow_blocked_transparent_stepped_loop(KernelGlobals *kg,
+#    ifdef __SPLIT_KERNEL__
+                                                        ccl_global PathState *state_shadow,
+#    endif
                                                         ShaderData *sd,
                                                         ShaderData *shadow_sd,
                                                         ccl_addr_space PathState *state,
@@ -312,7 +347,14 @@ ccl_device bool shadow_blocked_transparent_stepped_loop(KernelGlobals *kg,
 #      ifdef __SPLIT_KERNEL__
     ccl_addr_space
 #      endif
-        PathState *ps = shadow_blocked_volume_path_state(kg, &volume_state, state, sd, ray);
+        PathState *ps = shadow_blocked_volume_path_state(kg,
+#      ifdef __SPLIT_KERNEL__
+                                                         state_shadow,
+#      endif
+                                                         &volume_state,
+                                                         state,
+                                                         sd,
+                                                         ray);
 #    endif
     for (;;) {
       if (bounce >= kernel_data.integrator.transparent_max_bounce) {
@@ -358,7 +400,14 @@ ccl_device bool shadow_blocked_transparent_stepped_loop(KernelGlobals *kg,
 #      ifdef __SPLIT_KERNEL__
     ccl_addr_space
 #      endif
-        PathState *ps = shadow_blocked_volume_path_state(kg, &volume_state, state, sd, ray);
+        PathState *ps = shadow_blocked_volume_path_state(kg,
+#      ifdef __SPLIT_KERNEL__
+                                                         state_shadow,
+#      endif
+                                                         &volume_state,
+                                                         state,
+                                                         sd,
+                                                         ray);
     kernel_volume_shadow(kg, shadow_sd, ps, ray, shadow);
   }
 #    endif
@@ -366,6 +415,9 @@ ccl_device bool shadow_blocked_transparent_stepped_loop(KernelGlobals *kg,
 }
 
 ccl_device bool shadow_blocked_transparent_stepped(KernelGlobals *kg,
+#    ifdef __SPLIT_KERNEL__
+                                                   state_shadow,
+#    endif
                                                    ShaderData *sd,
                                                    ShaderData *shadow_sd,
                                                    ccl_addr_space PathState *state,
@@ -376,14 +428,28 @@ ccl_device bool shadow_blocked_transparent_stepped(KernelGlobals *kg,
 {
   bool blocked = scene_intersect(kg, ray, visibility & PATH_RAY_SHADOW_OPAQUE, isect);
   bool is_transparent_isect = blocked ? shader_transparent_shadow(kg, isect) : false;
-  return shadow_blocked_transparent_stepped_loop(
-      kg, sd, shadow_sd, state, visibility, ray, isect, blocked, is_transparent_isect, shadow);
+  return shadow_blocked_transparent_stepped_loop(kg,
+#    ifdef __SPLIT_KERNEL__
+                                                 state_shadow,
+#    endif
+                                                 sd,
+                                                 shadow_sd,
+                                                 state,
+                                                 visibility,
+                                                 ray,
+                                                 isect,
+                                                 blocked,
+                                                 is_transparent_isect,
+                                                 shadow);
 }
 
 #  endif /* __KERNEL_GPU__ || !__SHADOW_RECORD_ALL__ */
 #endif   /* __TRANSPARENT_SHADOWS__ */
 
 ccl_device_inline bool shadow_blocked(KernelGlobals *kg,
+#ifdef __SPLIT_KERNEL__
+                                      ccl_global PathState *state_shadow,
+#endif
                                       ShaderData *sd,
                                       ShaderData *shadow_sd,
                                       ccl_addr_space PathState *state,
@@ -447,16 +513,45 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg,
   const bool blocked = scene_intersect(kg, ray, visibility & PATH_RAY_SHADOW_OPAQUE, &isect);
   const bool is_transparent_isect = blocked ? shader_transparent_shadow(kg, &isect) : false;
   if (!blocked || !is_transparent_isect || max_hits + 1 >= SHADOW_STACK_MAX_HITS) {
-    return shadow_blocked_transparent_stepped_loop(
-        kg, sd, shadow_sd, state, visibility, ray, &isect, blocked, is_transparent_isect, shadow);
+    return shadow_blocked_transparent_stepped_loop(kg,
+#      ifdef __SPLIT_KERNEL__
+                                                   state_shadow,
+#      endif
+                                                   sd,
+                                                   shadow_sd,
+                                                   state,
+                                                   visibility,
+                                                   ray,
+                                                   &isect,
+                                                   blocked,
+                                                   is_transparent_isect,
+                                                   shadow);
   }
 #    endif /* __KERNEL_GPU__ */
-  return shadow_blocked_transparent_all(
-      kg, sd, shadow_sd, state, visibility, ray, max_hits, shadow);
+  return shadow_blocked_transparent_all(kg,
+#    ifdef __SPLIT_KERNEL__
+                                        state_shadow,
+#    endif
+                                        sd,
+                                        shadow_sd,
+                                        state,
+                                        visibility,
+                                        ray,
+                                        max_hits,
+                                        shadow);
 #  else  /* __SHADOW_RECORD_ALL__ */
   /* Fallback to a slowest version which works on all devices. */
-  return shadow_blocked_transparent_stepped(
-      kg, sd, shadow_sd, state, visibility, ray, &isect, shadow);
+  return shadow_blocked_transparent_stepped(kg,
+#    ifdef __SPLIT_KERNEL__
+                                            state_shadow,
+#    endif
+                                            sd,
+                                            shadow_sd,
+                                            state,
+                                            visibility,
+                                            ray,
+                                            &isect,
+                                            shadow);
 #  endif /* __SHADOW_RECORD_ALL__ */
 #endif   /* __TRANSPARENT_SHADOWS__ */
 }

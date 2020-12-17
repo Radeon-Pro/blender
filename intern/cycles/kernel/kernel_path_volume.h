@@ -19,6 +19,9 @@ CCL_NAMESPACE_BEGIN
 #ifdef __VOLUME_SCATTER__
 
 ccl_device_inline void kernel_path_volume_connect_light(KernelGlobals *kg,
+#  ifdef __SPLIT_KERNEL__
+                                                        ccl_global PathState *state_shadow,
+#  endif
                                                         ShaderData *sd,
                                                         ShaderData *emission_sd,
                                                         float3 throughput,
@@ -53,7 +56,15 @@ ccl_device_inline void kernel_path_volume_connect_light(KernelGlobals *kg,
   /* trace shadow ray */
   float3 shadow;
 
-  const bool blocked = shadow_blocked(kg, sd, emission_sd, state, &light_ray, &shadow);
+  const bool blocked = shadow_blocked(kg,
+#    ifdef __SPLIT_KERNEL__
+                                      state_shadow,
+#    endif
+                                      sd,
+                                      emission_sd,
+                                      state,
+                                      &light_ray,
+                                      &shadow);
 
   if (has_emission && !blocked) {
     /* accumulate */
@@ -129,6 +140,9 @@ ccl_device_noinline_cpu bool kernel_path_volume_bounce(KernelGlobals *kg,
 
 #  if !defined(__SPLIT_KERNEL__) && (defined(__BRANCHED_PATH__) || defined(__VOLUME_DECOUPLED__))
 ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg,
+#    ifdef __SPLIT_KERNEL__
+                                                          ccl_global PathState *state_shadow,
+#    endif
                                                           ShaderData *sd,
                                                           ShaderData *emission_sd,
                                                           float3 throughput,
@@ -242,7 +256,15 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg,
       /* trace shadow ray */
       float3 shadow;
 
-      const bool blocked = shadow_blocked(kg, sd, emission_sd, state, &light_ray, &shadow);
+      const bool blocked = shadow_blocked(kg,
+#      ifdef __SPLIT_KERNEL__
+                                          state_shadow,
+#      endif
+                                          sd,
+                                          emission_sd,
+                                          state,
+                                          &light_ray,
+                                          &shadow);
 
       if (has_emission && !blocked) {
         /* accumulate */

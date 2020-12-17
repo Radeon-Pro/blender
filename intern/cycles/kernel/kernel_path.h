@@ -327,6 +327,9 @@ ccl_device_noinline
 #endif
     void
     kernel_path_ao(KernelGlobals *kg,
+#ifdef __SPLIT_KERNEL__
+                   ccl_global PathState *state_shadow,
+#endif
                    ShaderData *sd,
                    ShaderData *emission_sd,
                    PathRadiance *L,
@@ -360,7 +363,15 @@ ccl_device_noinline
     light_ray.dP = sd->dP;
     light_ray.dD = differential3_zero();
 
-    if (!shadow_blocked(kg, sd, emission_sd, state, &light_ray, &ao_shadow)) {
+    if (!shadow_blocked(kg,
+#ifdef __SPLIT_KERNEL__
+                        state_shadow,
+#endif
+                        sd,
+                        emission_sd,
+                        state,
+                        &light_ray,
+                        &ao_shadow)) {
       path_radiance_accum_ao(kg, L, state, throughput, ao_alpha, ao_bsdf, ao_shadow);
     }
     else {
@@ -374,6 +385,9 @@ ccl_device_noinline
 #  if defined(__BRANCHED_PATH__) || defined(__BAKING__)
 
 ccl_device void kernel_path_indirect(KernelGlobals *kg,
+#    ifdef __SPLIT_KERNEL__
+                                     ccl_global PathState *state_shadow,
+#    endif
                                      ShaderData *sd,
                                      ShaderData *emission_sd,
                                      Ray *ray,
@@ -460,7 +474,16 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 #    ifdef __AO__
         /* ambient occlusion */
         if (kernel_data.integrator.use_ambient_occlusion) {
-          kernel_path_ao(kg, sd, emission_sd, L, state, throughput, make_float3(0.0f, 0.0f, 0.0f));
+          kernel_path_ao(kg,
+#      ifdef __SPLIT_KERNEL__
+                         state_shadow,
+#      endif
+                         sd,
+                         emission_sd,
+                         L,
+                         state,
+                         throughput,
+                         make_float3(0.0f, 0.0f, 0.0f));
         }
 #    endif /* __AO__ */
 
@@ -507,6 +530,9 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 #  endif /* defined(__BRANCHED_PATH__) || defined(__BAKING__) */
 
 ccl_device_forceinline void kernel_path_integrate(KernelGlobals *kg,
+#  ifdef __SPLIT_KERNEL__
+                                                  ccl_global PathState *state_shadow,
+#  endif
                                                   PathState *state,
                                                   float3 throughput,
                                                   Ray *ray,
@@ -597,7 +623,16 @@ ccl_device_forceinline void kernel_path_integrate(KernelGlobals *kg,
 #  ifdef __AO__
         /* ambient occlusion */
         if (kernel_data.integrator.use_ambient_occlusion) {
-          kernel_path_ao(kg, &sd, emission_sd, L, state, throughput, shader_bsdf_alpha(kg, &sd));
+          kernel_path_ao(kg,
+#    ifdef __SPLIT_KERNEL__
+                         state_shadow,
+#    endif
+                         &sd,
+                         emission_sd,
+                         L,
+                         state,
+                         throughput,
+                         shader_bsdf_alpha(kg, &sd));
         }
 #  endif /* __AO__ */
 

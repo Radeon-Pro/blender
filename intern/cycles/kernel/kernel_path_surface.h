@@ -116,7 +116,15 @@ ccl_device_noinline_cpu void kernel_branched_path_surface_connect_light(
       /* trace shadow ray */
       float3 shadow;
 
-      const bool blocked = shadow_blocked(kg, sd, emission_sd, state, &light_ray, &shadow);
+      const bool blocked = shadow_blocked(kg,
+#    ifdef __SPLIT_KERNEL__
+          &kg->split_data.state_shadow[ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0)],
+#    endif
+                                          sd,
+                                          emission_sd,
+                                          state,
+                                          &light_ray,
+                                          &shadow);
 
       if (has_emission) {
         if (!blocked) {
@@ -251,7 +259,15 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg,
   /* trace shadow ray */
   float3 shadow;
 
-  const bool blocked = shadow_blocked(kg, sd, emission_sd, state, &light_ray, &shadow);
+  const bool blocked = shadow_blocked(kg,
+#    ifdef __SPLIT_KERNEL__
+      &kg->split_data.state_shadow[ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0)],
+#    endif
+                                      sd,
+                                      emission_sd,
+                                      state,
+                                      &light_ray,
+                                      &shadow);
 
   if (has_emission) {
     if (!blocked) {

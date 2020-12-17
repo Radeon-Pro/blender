@@ -60,11 +60,28 @@ ccl_device void kernel_shadow_blocked_ao(KernelGlobals *kg
   if (!kernel_data.integrator.branched ||
       IS_FLAG(ray_state_buffer, ray_index, RAY_BRANCHED_INDIRECT)) {
 #endif
-    kernel_path_ao(kg, sd, emission_sd, L, state, throughput, shader_bsdf_alpha(kg, sd));
+    kernel_path_ao(kg,
+#ifdef __SPLIT_KERNEL__
+                   &kernel_split_state_buffer(state_shadow, PathState)[thread_index],
+#endif
+                   sd,
+                   emission_sd,
+                   L,
+                   state,
+                   throughput,
+                   shader_bsdf_alpha(kg, sd));
 #ifdef __BRANCHED_PATH__
   }
   else {
-    kernel_branched_path_ao(kg, sd, emission_sd, L, state, throughput);
+    kernel_branched_path_ao(kg,
+#  ifdef __SPLIT_KERNEL__
+                            &kernel_split_state_buffer(state_shadow, PathState)[thread_index],
+#  endif
+                            sd,
+                            emission_sd,
+                            L,
+                            state,
+                            throughput);
   }
 #endif
 }

@@ -19,6 +19,9 @@ CCL_NAMESPACE_BEGIN
 #ifdef __BRANCHED_PATH__
 
 ccl_device_inline void kernel_branched_path_ao(KernelGlobals *kg,
+#  ifdef __SPLIT_KERNEL__
+                                               ccl_global PathState *state_shadow,
+#  endif
                                                ShaderData *sd,
                                                ShaderData *emission_sd,
                                                PathRadiance *L,
@@ -53,7 +56,15 @@ ccl_device_inline void kernel_branched_path_ao(KernelGlobals *kg,
       light_ray.dP = sd->dP;
       light_ray.dD = differential3_zero();
 
-      if (!shadow_blocked(kg, sd, emission_sd, state, &light_ray, &ao_shadow)) {
+      if (!shadow_blocked(kg,
+#  ifdef __SPLIT_KERNEL__
+                          state_shadow,
+#  endif
+                          sd,
+                          emission_sd,
+                          state,
+                          &light_ray,
+                          &ao_shadow)) {
         path_radiance_accum_ao(
             kg, L, state, throughput * num_samples_inv, ao_alpha, ao_bsdf, ao_shadow);
       }
