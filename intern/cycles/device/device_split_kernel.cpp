@@ -20,7 +20,10 @@
 #include "kernel/split/kernel_split_data_types.h"
 
 #include "util/util_logging.h"
+#include "util/util_path.h"
 #include "util/util_time.h"
+
+#include <fstream>
 
 CCL_NAMESPACE_BEGIN
 
@@ -37,6 +40,7 @@ DeviceSplitKernel::DeviceSplitKernel(Device *device)
 {
   avg_time_per_sample = 0.0;
 
+  kernel_data_init = NULL;
   kernel_path_init = NULL;
   kernel_scene_intersect = NULL;
   kernel_lamp_emission = NULL;
@@ -69,6 +73,7 @@ DeviceSplitKernel::~DeviceSplitKernel()
   queue_index.free();
   work_pool_wgs.free();
 
+  delete kernel_data_init;
   delete kernel_path_init;
   delete kernel_scene_intersect;
   delete kernel_lamp_emission;
@@ -169,6 +174,7 @@ bool DeviceSplitKernel::path_trace(DeviceTask &task,
     return false; \
   }
 
+    LOAD_KERNEL(data_init);
     LOAD_KERNEL(path_init);
     LOAD_KERNEL(scene_intersect);
     LOAD_KERNEL(lamp_emission);
@@ -200,14 +206,19 @@ bool DeviceSplitKernel::path_trace(DeviceTask &task,
   /* Number of elements in the global state buffer */
   int num_global_elements = global_size[0] * global_size[1];
 
+  const string cache_path = path_cache_get(path_join("kernels", "log.txt"));
+  static std::ofstream ofs(cache_path.c_str(), std::ios_base::ate);
+
 #define ENQUEUE_SPLIT_KERNEL(name, global_size, local_size) \
+  ofs << "Enqueue " << #name << std::endl; \
   if (device->have_error()) { \
     return false; \
   } \
   if (!kernel_##name->enqueue( \
           KernelDimensions(global_size, local_size), kgbuffer, kernel_data)) { \
     return false; \
-  }
+  } \
+  ofs << "Complete " << #name << std::endl;
 
   tile.sample = tile.start_sample;
 
@@ -249,6 +260,7 @@ bool DeviceSplitKernel::path_trace(DeviceTask &task,
     split_data.zero_to_device();
     ray_state.zero_to_device();
 
+    ofs << "Enqueue " << "data_init" << std::endl;
     if (!enqueue_split_kernel_data_init(KernelDimensions(global_size, local_size),
                                         subtile,
                                         num_global_elements,
@@ -261,6 +273,7 @@ bool DeviceSplitKernel::path_trace(DeviceTask &task,
                                         work_pool_wgs)) {
       return false;
     }
+    ofs << "Complete " << "data_init" << std::endl;
 
     ENQUEUE_SPLIT_KERNEL(path_init, global_size, local_size);
 

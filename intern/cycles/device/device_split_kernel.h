@@ -101,9 +101,12 @@ class DeviceSplitKernel {
 
   /* Cached kernel-dependent data, initialized once. */
   bool kernel_data_initialized;
-  DeviceRequestedFeatures requested_features;
   size_t local_size[2];
   size_t global_size[2];
+
+ protected:
+  SplitKernelFunction *kernel_data_init;
+  DeviceRequestedFeatures requested_features;
 
  public:
   explicit DeviceSplitKernel(Device *device);
