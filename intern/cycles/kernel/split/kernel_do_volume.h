@@ -18,12 +18,13 @@ CCL_NAMESPACE_BEGIN
 
 #if defined(__BRANCHED_PATH__) && defined(__VOLUME__)
 
-ccl_device_inline void kernel_split_branched_path_volume_indirect_light_init(
-    KernelGlobals *kg,
-#  ifdef __KERNEL_OPENCL__
-    ccl_global char *ray_state,
-#  endif
-    int ray_index)
+ccl_device_inline void
+kernel_split_branched_path_volume_indirect_light_init(
+  KernelGlobals *kg,
+#ifdef __KERNEL_OPENCL__
+  ccl_global char *ray_state,
+#endif
+  int ray_index)
 {
   kernel_split_branched_path_indirect_loop_init(kg, ray_index);
 
@@ -31,11 +32,14 @@ ccl_device_inline void kernel_split_branched_path_volume_indirect_light_init(
 }
 
 ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(
-    KernelGlobals *kg,
+  KernelGlobals *kg,
 #  ifdef __KERNEL_OPENCL__
-    ccl_global void *split_data_buffer,
+  ccl_global void *split_data_buffer,
 #  endif
-    int ray_index)
+#  ifdef __SPLIT_KERNEL__
+  ccl_global PathState *state_shadow,
+#  endif
+  int ray_index)
 {
   SplitBranchedState *branched_state = &kernel_split_state_buffer(branched_state,
                                                                   SplitBranchedState)[ray_index];
@@ -76,7 +80,7 @@ ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(
 #  ifdef __VOLUME_SCATTER__
     if (result == VOLUME_PATH_SCATTERED) {
       /* direct lighting */
-      kernel_path_volume_connect_light(kg, sd, emission_sd, *tp, &branched_state->path_state, L);
+      kernel_path_volume_connect_light(kg, state_shadow, sd, emission_sd, *tp, &branched_state->path_state, L);
 
       /* indirect light bounce */
       if (!kernel_path_volume_bounce(kg, sd, tp, ps, &L->state, pray)) {
@@ -195,11 +199,19 @@ ccl_device void kernel_do_volume(KernelGlobals *kg
           VolumeIntegrateResult result = kernel_volume_integrate(
               kg, state, sd, &volume_ray, L, throughput, step_size);
 
+
 #  ifdef __VOLUME_SCATTER__
           if (result == VOLUME_PATH_SCATTERED) {
             /* direct lighting */
-            kernel_path_volume_connect_light(kg, sd, emission_sd, *throughput, state, L);
-
+            kernel_path_volume_connect_light(kg,
+#    ifdef __SPLIT_KERNEL__
+                &kernel_split_state_buffer(state_shadow, PathState)[ray_index],
+#    endif
+                sd,
+                emission_sd,
+                *throughput,
+                state,
+                L);
             /* indirect light bounce */
             if (kernel_path_volume_bounce(kg, sd, throughput, state, &L->state, ray)) {
               ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);
@@ -220,11 +232,13 @@ ccl_device void kernel_do_volume(KernelGlobals *kg
           ray_state_buffer,
 #    endif
           ray_index);
-
         if (kernel_split_branched_path_volume_indirect_light_iter(
           kg,
 #    ifdef __KERNEL_OPENCL__
-          ray_state_buffer,
+          split_data_buffer,
+#    endif
+#    ifdef __SPLIT_KERNEL__
+          &kernel_split_state_buffer(state_shadow, PathState)[ray_index],
 #    endif
           ray_index)) {
           ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);
@@ -251,12 +265,14 @@ ccl_device void kernel_do_volume(KernelGlobals *kg
     path_radiance_reset_indirect(
         &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index]);
 
-    if (kernel_split_branched_path_volume_indirect_light_iter(
-      kg,
+    if (kernel_split_branched_path_volume_indirect_light_iter(kg,
 #    ifdef __KERNEL_OPENCL__
-      ray_state_buffer,
+            split_data_buffer,
 #    endif
-      ray_index)) {
+#    ifdef __SPLIT_KERNEL__
+            &kernel_split_state_buffer(state_shadow, PathState)[ray_index],
+#    endif
+            ray_index)) {
       ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);
     }
   }
