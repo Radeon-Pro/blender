@@ -61,7 +61,7 @@ ccl_device void kernel_shadow_blocked_ao(KernelGlobals *kg
       IS_FLAG(ray_state_buffer, ray_index, RAY_BRANCHED_INDIRECT)) {
 #endif
     kernel_path_ao(kg,
-#ifdef __SPLIT_KERNEL__
+#if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                    &kernel_split_state_buffer(state_shadow, PathState)[thread_index],
 #endif
                    sd,
@@ -74,7 +74,7 @@ ccl_device void kernel_shadow_blocked_ao(KernelGlobals *kg
   }
   else {
     kernel_branched_path_ao(kg,
-#  ifdef __SPLIT_KERNEL__
+#  if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                             &kernel_split_state_buffer(state_shadow, PathState)[thread_index],
 #  endif
                             sd,

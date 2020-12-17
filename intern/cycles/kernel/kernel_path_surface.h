@@ -22,6 +22,9 @@ CCL_NAMESPACE_BEGIN
  */
 ccl_device_noinline_cpu void kernel_branched_path_surface_connect_light(
     KernelGlobals *kg,
+#  if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
+    ccl_global PathState *state_shadow,
+#  endif
     ShaderData *sd,
     ShaderData *emission_sd,
     ccl_addr_space PathState *state,
@@ -117,8 +120,8 @@ ccl_device_noinline_cpu void kernel_branched_path_surface_connect_light(
       float3 shadow;
 
       const bool blocked = shadow_blocked(kg,
-#    ifdef __SPLIT_KERNEL__
-          &kg->split_data.state_shadow[ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0)],
+#    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
+                                          state_shadow,
 #    endif
                                           sd,
                                           emission_sd,
@@ -220,6 +223,9 @@ ccl_device bool kernel_branched_path_surface_bounce(KernelGlobals *kg,
 
 /* path tracing: connect path directly to position on a light and add it to L */
 ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg,
+#if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
+                                                         ccl_global PathState *state_shadow,
+#endif
                                                          ShaderData *sd,
                                                          ShaderData *emission_sd,
                                                          float3 throughput,
@@ -231,7 +237,17 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg,
 #ifdef __EMISSION__
 #  ifdef __SHADOW_TRICKS__
   int all = (state->flag & PATH_RAY_SHADOW_CATCHER);
-  kernel_branched_path_surface_connect_light(kg, sd, emission_sd, state, throughput, 1.0f, L, all);
+  kernel_branched_path_surface_connect_light(kg,
+#    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
+                                             state_shadow,
+#    endif
+                                             sd,
+                                             emission_sd,
+                                             state,
+                                             throughput,
+                                             1.0f,
+                                             L,
+                                             all);
 #  else
   /* sample illumination from lights to find path contribution */
   Ray light_ray ccl_optional_struct_init;
@@ -260,8 +276,8 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg,
   float3 shadow;
 
   const bool blocked = shadow_blocked(kg,
-#    ifdef __SPLIT_KERNEL__
-      &kg->split_data.state_shadow[ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0)],
+#    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
+                                      state_shadow,
 #    endif
                                       sd,
                                       emission_sd,

@@ -2574,8 +2574,6 @@ uint64_t CUDASplitKernel::state_buffer_size(device_memory & /*kg*/,
   size_t size = size_buffer[0];
   size_buffer.free();
 
-  /// TODO: fill offsets buffer
-
   return size;
 }
 

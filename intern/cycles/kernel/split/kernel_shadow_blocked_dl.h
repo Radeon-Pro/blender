@@ -90,7 +90,17 @@ ccl_device void kernel_shadow_blocked_dl(KernelGlobals *kg
 
   if (use_branched) {
     kernel_branched_path_surface_connect_light(
-        kg, sd, emission_sd, state, throughput, 1.0f, L, all);
+        kg,
+#  if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
+        &kernel_split_state_buffer(state_shadow, PathState)[thread_index],
+#  endif
+        sd,
+        emission_sd,
+        state,
+        throughput,
+        1.0f,
+        L,
+        all);
   }
   else
 #endif /* defined(__BRANCHED_PATH__) || defined(__SHADOW_TRICKS__)*/
@@ -99,7 +109,7 @@ ccl_device void kernel_shadow_blocked_dl(KernelGlobals *kg
     float3 shadow;
 
     if (!shadow_blocked(kg,
-#ifdef __SPLIT_KERNEL__
+#if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                         &kernel_split_state_buffer(state_shadow, PathState)[thread_index],
 #endif
                         sd,

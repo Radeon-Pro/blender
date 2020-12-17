@@ -144,6 +144,11 @@ ccl_device_noinline bool kernel_split_branched_path_subsurface_indirect_light_it
             int all = (kernel_data.integrator.sample_all_lights_direct) ||
                       (hit_state->flag & PATH_RAY_SHADOW_CATCHER);
             kernel_branched_path_surface_connect_light(kg,
+#    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
+                &kernel_split_state_buffer(
+                    state_shadow,
+                    PathState)[ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0)],
+#    endif
                                                        bssrdf_sd,
                                                        emission_sd,
                                                        hit_state,
@@ -241,7 +246,19 @@ ccl_device void kernel_subsurface_scatter(KernelGlobals *kg
           IS_FLAG(ray_state_buffer, ray_index, RAY_BRANCHED_INDIRECT)) {
 #  endif
         if (kernel_path_subsurface_scatter(
-                kg, sd, emission_sd, L, state, ray, throughput, ss_indirect)) {
+                kg,
+#  if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
+                &kernel_split_state_buffer(
+                    state_shadow,
+                    PathState)[ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0)],
+#  endif
+                sd,
+                emission_sd,
+                L,
+                state,
+                ray,
+                throughput,
+                ss_indirect)) {
           kernel_split_path_end(kg, ray_state_buffer, ray_index);
         }
 #  ifdef __BRANCHED_PATH__

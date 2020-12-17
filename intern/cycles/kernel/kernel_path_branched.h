@@ -19,7 +19,7 @@ CCL_NAMESPACE_BEGIN
 #ifdef __BRANCHED_PATH__
 
 ccl_device_inline void kernel_branched_path_ao(KernelGlobals *kg,
-#  ifdef __SPLIT_KERNEL__
+#  if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                                                ccl_global PathState *state_shadow,
 #  endif
                                                ShaderData *sd,
@@ -57,7 +57,7 @@ ccl_device_inline void kernel_branched_path_ao(KernelGlobals *kg,
       light_ray.dD = differential3_zero();
 
       if (!shadow_blocked(kg,
-#  ifdef __SPLIT_KERNEL__
+#  if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                           state_shadow,
 #  endif
                           sd,

@@ -142,7 +142,7 @@ ccl_device bool shadow_blocked_opaque(KernelGlobals *kg,
  * Note that hits array should be as big as max_hits+1.
  */
 ccl_device bool shadow_blocked_transparent_all_loop(KernelGlobals *kg,
-#    ifdef __SPLIT_KERNEL__
+#    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                                                     ccl_global PathState *state_shadow,
 #    endif
                                                     ShaderData *sd,
@@ -252,7 +252,7 @@ ccl_device bool shadow_blocked_transparent_all_loop(KernelGlobals *kg,
  * loop to help readability of the actual logic.
  */
 ccl_device bool shadow_blocked_transparent_all(KernelGlobals *kg,
-#    ifdef __SPLIT_KERNEL__
+#    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                                                ccl_global PathState *state_shadow,
 #    endif
                                                ShaderData *sd,
@@ -291,7 +291,7 @@ ccl_device bool shadow_blocked_transparent_all(KernelGlobals *kg,
 #    endif /* __KERNEL_GPU__ */
   /* Invoke actual traversal. */
   return shadow_blocked_transparent_all_loop(kg,
-#    ifdef __SPLIT_KERNEL__
+#    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                                              state_shadow,
 #    endif
                                              sd,
@@ -319,7 +319,7 @@ ccl_device bool shadow_blocked_transparent_all(KernelGlobals *kg,
  * which requires some precalculation done.
  */
 ccl_device bool shadow_blocked_transparent_stepped_loop(KernelGlobals *kg,
-#    ifdef __SPLIT_KERNEL__
+#    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                                                         ccl_global PathState *state_shadow,
 #    endif
                                                         ShaderData *sd,
@@ -415,7 +415,7 @@ ccl_device bool shadow_blocked_transparent_stepped_loop(KernelGlobals *kg,
 }
 
 ccl_device bool shadow_blocked_transparent_stepped(KernelGlobals *kg,
-#    ifdef __SPLIT_KERNEL__
+#    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                                                    state_shadow,
 #    endif
                                                    ShaderData *sd,
@@ -429,7 +429,7 @@ ccl_device bool shadow_blocked_transparent_stepped(KernelGlobals *kg,
   bool blocked = scene_intersect(kg, ray, visibility & PATH_RAY_SHADOW_OPAQUE, isect);
   bool is_transparent_isect = blocked ? shader_transparent_shadow(kg, isect) : false;
   return shadow_blocked_transparent_stepped_loop(kg,
-#    ifdef __SPLIT_KERNEL__
+#    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                                                  state_shadow,
 #    endif
                                                  sd,
@@ -447,7 +447,7 @@ ccl_device bool shadow_blocked_transparent_stepped(KernelGlobals *kg,
 #endif   /* __TRANSPARENT_SHADOWS__ */
 
 ccl_device_inline bool shadow_blocked(KernelGlobals *kg,
-#ifdef __SPLIT_KERNEL__
+#if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                                       ccl_global PathState *state_shadow,
 #endif
                                       ShaderData *sd,
@@ -514,7 +514,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg,
   const bool is_transparent_isect = blocked ? shader_transparent_shadow(kg, &isect) : false;
   if (!blocked || !is_transparent_isect || max_hits + 1 >= SHADOW_STACK_MAX_HITS) {
     return shadow_blocked_transparent_stepped_loop(kg,
-#      ifdef __SPLIT_KERNEL__
+#      if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                                                    state_shadow,
 #      endif
                                                    sd,
@@ -529,7 +529,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg,
   }
 #    endif /* __KERNEL_GPU__ */
   return shadow_blocked_transparent_all(kg,
-#    ifdef __SPLIT_KERNEL__
+#    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                                         state_shadow,
 #    endif
                                         sd,
@@ -542,7 +542,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg,
 #  else  /* __SHADOW_RECORD_ALL__ */
   /* Fallback to a slowest version which works on all devices. */
   return shadow_blocked_transparent_stepped(kg,
-#    ifdef __SPLIT_KERNEL__
+#    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                                             state_shadow,
 #    endif
                                             sd,

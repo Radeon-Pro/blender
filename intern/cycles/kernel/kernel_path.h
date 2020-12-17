@@ -327,7 +327,7 @@ ccl_device_noinline
 #endif
     void
     kernel_path_ao(KernelGlobals *kg,
-#ifdef __SPLIT_KERNEL__
+#if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                    ccl_global PathState *state_shadow,
 #endif
                    ShaderData *sd,
@@ -364,7 +364,7 @@ ccl_device_noinline
     light_ray.dD = differential3_zero();
 
     if (!shadow_blocked(kg,
-#ifdef __SPLIT_KERNEL__
+#if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                         state_shadow,
 #endif
                         sd,
@@ -385,7 +385,7 @@ ccl_device_noinline
 #  if defined(__BRANCHED_PATH__) || defined(__BAKING__)
 
 ccl_device void kernel_path_indirect(KernelGlobals *kg,
-#    ifdef __SPLIT_KERNEL__
+#    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                                      ccl_global PathState *state_shadow,
 #    endif
                                      ShaderData *sd,
@@ -475,7 +475,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
         /* ambient occlusion */
         if (kernel_data.integrator.use_ambient_occlusion) {
           kernel_path_ao(kg,
-#      ifdef __SPLIT_KERNEL__
+#      if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                          state_shadow,
 #      endif
                          sd,
@@ -530,7 +530,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 #  endif /* defined(__BRANCHED_PATH__) || defined(__BAKING__) */
 
 ccl_device_forceinline void kernel_path_integrate(KernelGlobals *kg,
-#  ifdef __SPLIT_KERNEL__
+#  if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
                                                   ccl_global PathState *state_shadow,
 #  endif
                                                   PathState *state,

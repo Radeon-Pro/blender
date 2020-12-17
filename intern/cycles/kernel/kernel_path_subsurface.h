@@ -24,6 +24,9 @@ ccl_device_inline
 #  endif
     bool
     kernel_path_subsurface_scatter(KernelGlobals *kg,
+#  if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
+                                   ccl_global PathState *state_shadow,
+#  endif
                                    ShaderData *sd,
                                    ShaderData *emission_sd,
                                    PathRadiance *L,
@@ -69,7 +72,15 @@ ccl_device_inline
        */
       subsurface_scatter_multi_setup(kg, &ss_isect, hit, sd, state, bssrdf_type, bssrdf_roughness);
 
-      kernel_path_surface_connect_light(kg, sd, emission_sd, *throughput, state, L);
+      kernel_path_surface_connect_light(kg,
+#  if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
+                                        state_shadow,
+#  endif
+                                        sd,
+                                        emission_sd,
+                                        *throughput,
+                                        state,
+                                        L);
 
       ccl_addr_space PathState *hit_state = &ss_indirect->state[ss_indirect->num_rays];
       ccl_addr_space Ray *hit_ray = &ss_indirect->rays[ss_indirect->num_rays];
