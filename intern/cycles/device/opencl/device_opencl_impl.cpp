@@ -408,8 +408,6 @@ class OpenCLSplitKernelFunction : public SplitKernelFunction {
       return false;
     }
 
-    device->ciErr = clFinish(device->cqCommandQueue);
-
     TotalKernelDispatchGuard::get_instance().increment();
     return true;
   }
@@ -627,8 +625,6 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
     cached_memory.work_pools = &work_pool_wgs;
     cached_memory.buffer = &rtile.buffer;
     cached_memory.id++;
-
-    device->ciErr = clFinish(device->cqCommandQueue);
 
     TotalKernelDispatchGuard::get_instance().increment();
     return true;
