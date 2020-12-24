@@ -1617,6 +1617,14 @@ uint64_t CPUSplitKernel::state_buffer_size(device_memory &kernel_globals,
 {
   KernelGlobals *kg = (KernelGlobals *)kernel_globals.device_pointer;
 
+    uint64_t split_data_entries_num = 0;
+#define SPLIT_DATA_ENTRY(type, name, num) ++split_data_entries_num;
+
+  SPLIT_DATA_ENTRIES;
+#undef SPLIT_DATA_ENTRY
+
+  offsets.resize(split_data_entries_num + 2);
+
   return split_data_buffer_size(kg, num_threads, offsets.data());
 }
 
