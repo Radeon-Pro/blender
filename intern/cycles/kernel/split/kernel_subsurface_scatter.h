@@ -21,7 +21,7 @@ CCL_NAMESPACE_BEGIN
 ccl_device_inline void kernel_split_branched_path_subsurface_indirect_light_init(
     KernelGlobals *kg,
 #  ifdef __KERNEL_OPENCL__
-    ccl_global void *split_data_buffer,
+    SPLIT_DATA_BUFFER_PARAMS,
     ccl_global char *ray_state,
 #  endif
     int ray_index)
@@ -43,7 +43,7 @@ ccl_device_inline void kernel_split_branched_path_subsurface_indirect_light_init
 ccl_device_noinline bool kernel_split_branched_path_subsurface_indirect_light_iter(
     KernelGlobals *kg,
 #  ifdef __KERNEL_OPENCL__
-    ccl_global void *split_data_buffer,
+    SPLIT_DATA_BUFFER_PARAMS,
 #  endif
     int ray_index)
 {
@@ -197,7 +197,7 @@ ccl_device void kernel_subsurface_scatter(KernelGlobals *kg
 #ifdef __KERNEL_OPENCL__
                                           ,
                                           ccl_constant KernelData *data,
-                                          ccl_global void *split_data_buffer,
+                                          SPLIT_DATA_BUFFER_PARAMS,
                                           ccl_global char *ray_state,
                                           KERNEL_BUFFER_PARAMS,
                                           ccl_global int *queue_index,

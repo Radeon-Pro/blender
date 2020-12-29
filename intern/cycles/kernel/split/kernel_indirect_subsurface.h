@@ -20,7 +20,7 @@ ccl_device void kernel_indirect_subsurface(KernelGlobals *kg
 #ifdef __KERNEL_OPENCL__
                                            ,
                                            ccl_constant KernelData *data,
-                                           ccl_global void *split_data_buffer,
+                                           SPLIT_DATA_BUFFER_PARAMS,
                                            ccl_global char *ray_state,
                                            KERNEL_BUFFER_PARAMS,
                                            ccl_global int *queue_index,

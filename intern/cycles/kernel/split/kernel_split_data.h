@@ -36,7 +36,9 @@ ccl_device_inline uint64_t split_data_buffer_size(KernelGlobals *kg, size_t num_
 
   uint64_t closure_size = sizeof(ShaderClosure) * (kernel_data.integrator.max_closures - 1);
 
+  offsets--;
 #ifdef __BRANCHED_PATH__
+  offsets--;
   *(offsets++) = size;
   size += align_up(num_elements * (sizeof(ShaderData) + closure_size), 16);
 #endif

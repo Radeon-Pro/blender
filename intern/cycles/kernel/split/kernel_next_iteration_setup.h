@@ -58,7 +58,7 @@ ccl_device_inline void kernel_split_branched_indirect_light_init(
 
 ccl_device void kernel_split_branched_transparent_bounce(KernelGlobals *kg,
 #ifdef __KERNEL_OPENCL__
-                                                         ccl_global void *split_data_buffer,
+                                                         SPLIT_DATA_BUFFER_PARAMS,
 #  endif
                                                          ccl_global char *ray_state,
                                                          int ray_index)
@@ -110,7 +110,7 @@ ccl_device void kernel_split_branched_transparent_bounce(KernelGlobals *kg,
 ccl_device void kernel_next_iteration_setup(KernelGlobals *kg,
 #ifdef __KERNEL_OPENCL__
                                             ccl_constant KernelData *data,
-                                            ccl_global void *split_data_buffer,
+                                            SPLIT_DATA_BUFFER_PARAMS,
                                             ccl_global char *ray_state,
                                             KERNEL_BUFFER_PARAMS,
                                             ccl_global int *queue_index,
@@ -175,7 +175,7 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg,
     else if (sd->flag & SD_HAS_ONLY_VOLUME) {
       kernel_split_branched_transparent_bounce(kg,
 #  ifdef __KERNEL_OPENCL__
-                                               split_data_buffer,
+                                               SPLIT_DATA_BUFFER_ARGS,
 #  endif
                                                ray_state_buffer,
                                                ray_index);
@@ -191,7 +191,7 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg,
         kernel_split_branched_path_indirect_loop_end(kg, ray_index);
         kernel_split_branched_transparent_bounce(kg,
 #  ifdef __KERNEL_OPENCL__
-                                                 split_data_buffer,
+                                                 SPLIT_DATA_BUFFER_ARGS,
 #  endif
                                                  ray_state_buffer,
                                                  ray_index);
@@ -238,7 +238,7 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg,
       kernel_split_branched_path_indirect_loop_end(kg, ray_index);
       kernel_split_branched_transparent_bounce(kg,
 #  ifdef __KERNEL_OPENCL__
-                                               split_data_buffer,
+                                               SPLIT_DATA_BUFFER_ARGS,
 #  endif
                                                ray_state_buffer,
                                                ray_index);

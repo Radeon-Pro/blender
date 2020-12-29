@@ -162,11 +162,12 @@ class CPUSplitKernel : public DeviceSplitKernel {
                                               device_memory &ray_state,
                                               device_memory &queue_index,
                                               device_memory &use_queues_flag,
-                                              device_memory &work_pool_wgs);
+                                              device_memory &work_pool_wgs,
+                                              vector<uint64_t> &offsets);
 
   virtual SplitKernelFunction *get_split_kernel_function(const string &kernel_name,
                                                          const DeviceRequestedFeatures &,
-                                                         const vector<uint64_t> &);
+                                                         vector<uint64_t> & /*offsets*/);
   virtual int2 split_kernel_local_size();
   virtual int2 split_kernel_global_size(device_memory &kg, device_memory &data, DeviceTask &task);
   virtual uint64_t state_buffer_size(device_memory &kg,
@@ -1515,7 +1516,8 @@ class CPUSplitKernelFunction : public SplitKernelFunction {
 
   virtual bool enqueue(const KernelDimensions &dim,
                        device_memory &kernel_globals,
-                       device_memory &data)
+                       device_memory &data,
+                       vector<uint64_t> & /*offsets*/)
   {
     if (!func) {
       return false;
@@ -1549,7 +1551,8 @@ bool CPUSplitKernel::enqueue_split_kernel_data_init(const KernelDimensions &dim,
                                                     device_memory &ray_state,
                                                     device_memory &queue_index,
                                                     device_memory &use_queues_flags,
-                                                    device_memory &work_pool_wgs)
+                                                    device_memory &work_pool_wgs,
+                                                    vector<uint64_t> &offsets)
 {
   KernelGlobals *kg = (KernelGlobals *)kernel_globals.device_pointer;
   kg->global_size = make_int2(dim.global_size[0], dim.global_size[1]);
@@ -1585,7 +1588,7 @@ bool CPUSplitKernel::enqueue_split_kernel_data_init(const KernelDimensions &dim,
 
 SplitKernelFunction *CPUSplitKernel::get_split_kernel_function(const string &kernel_name,
                                                                const DeviceRequestedFeatures &,
-                                                               const vector<uint64_t> &)
+                                                               vector<uint64_t> & /*offsets*/)
 {
   CPUSplitKernelFunction *kernel = new CPUSplitKernelFunction(device);
 

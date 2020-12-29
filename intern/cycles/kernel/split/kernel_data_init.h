@@ -30,7 +30,11 @@ void KERNEL_FUNCTION_FULL_NAME(data_init)(
 #endif
     KernelGlobals *kg,
     ccl_constant KernelData *data,
+#ifdef __KERNEL_OPENCL__
+    SPLIT_DATA_BUFFER_PARAMS,
+#else
     ccl_global void *split_data_buffer,
+#endif
     int num_elements,
     ccl_global char *ray_state,
 

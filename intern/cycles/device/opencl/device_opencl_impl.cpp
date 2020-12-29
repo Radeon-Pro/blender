@@ -215,6 +215,42 @@ string OpenCLDevice::get_build_options(const DeviceRequestedFeatures &requested_
     build_options += features.get_build_options();
   }
 
+  build_options += " ";
+  string split_data_buffer_params =
+      "-DSPLIT_DATA_BUFFER_PARAMS=ccl_global/**/void/**/*split_data_buffer";
+  string split_data_buffer_args = "-DSPLIT_DATA_BUFFER_ARGS=split_data_buffer";
+
+#  define SPLIT_DATA_ENTRY(type, name, num) \
+    split_data_buffer_params += ",ulong/**/" #name "_offset"; \
+    split_data_buffer_args += "," #name "_offset";
+
+  SPLIT_DATA_ENTRY(ccl_global float3, throughput, 1)
+  SPLIT_DATA_ENTRY(PathRadiance, path_radiance, 1)
+  SPLIT_DATA_ENTRY(ccl_global Ray, ray, 1)
+  SPLIT_DATA_ENTRY(ccl_global PathState, path_state, 1)
+  SPLIT_DATA_ENTRY(ccl_global Intersection, isect, 1)
+  SPLIT_DATA_ENTRY(ccl_global BsdfEval, bsdf_eval, 1)
+  SPLIT_DATA_ENTRY(ccl_global int, is_lamp, 1)
+  SPLIT_DATA_ENTRY(ccl_global Ray, light_ray, 1)
+  SPLIT_DATA_ENTRY(
+      ccl_global int, queue_data, (NUM_QUEUES * 2)) /* TODO(mai): this is too large? */
+  SPLIT_DATA_ENTRY(ccl_global uint, buffer_offset, 1)
+  SPLIT_DATA_ENTRY(ShaderDataTinyStorage, sd_DL_shadow, 1)
+  if (requested_features.use_subsurface) {
+    SPLIT_DATA_SUBSURFACE_ENTRIES
+  }
+  if (requested_features.use_volume) {
+    SPLIT_DATA_VOLUME_ENTRIES
+  }
+  if (requested_features.use_integrator_branched) {
+    SPLIT_DATA_BRANCHED_ENTRIES
+  }
+  SPLIT_DATA_ENTRY(ShaderData, _sd, 0)
+#  undef SPLIT_DATA_ENTRY
+
+  build_options += split_data_buffer_params + " ";
+  build_options += split_data_buffer_args + " ";
+
   return build_options;
 }
 
@@ -343,11 +379,19 @@ class OpenCLSplitKernelFunction : public SplitKernelFunction {
     program.release();
   }
 
-  virtual bool enqueue(const KernelDimensions &dim, device_memory &kg, device_memory &data)
+  virtual bool enqueue(const KernelDimensions &dim,
+                       device_memory &kg,
+                       device_memory &data,
+                       vector<uint64_t> &offsets)
   {
     if (cached_id != cached_memory.id) {
       cl_uint start_arg_index = device->kernel_set_args(
-          program(), 0, kg, data, *cached_memory.split_data, *cached_memory.ray_state);
+          program(), 0, kg, data, *cached_memory.split_data);
+
+      for (uint64_t offset : offsets)
+        start_arg_index += device->kernel_set_args(program(), start_arg_index, offset);
+
+      start_arg_index += device->kernel_set_args(program(), start_arg_index, *cached_memory.ray_state);
 
       device->set_kernel_arg_buffers(program(), &start_arg_index);
 
@@ -396,48 +440,13 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
   virtual SplitKernelFunction *get_split_kernel_function(
       const string &kernel_name,
       const DeviceRequestedFeatures &requested_features,
-      const vector<uint64_t> &offsets)
+      vector<uint64_t> &offsets)
   {
     OpenCLSplitKernelFunction *kernel = new OpenCLSplitKernelFunction(device, cached_memory);
 
     const string program_name = device->get_opencl_program_name(kernel_name);
     string build_options = device->get_build_options(
         requested_features, program_name, device->use_preview_kernels);
-
-    size_t index = 0;
-
-#  define SPLIT_DATA_ENTRY(type, name, num) \
-    build_options += string(" -D" #name "_OFFSET=") + to_string(offsets[index++]) + " ";
-
-    SPLIT_DATA_ENTRY(ccl_global float3, throughput, 1)
-    SPLIT_DATA_ENTRY(PathRadiance, path_radiance, 1)
-    SPLIT_DATA_ENTRY(ccl_global Ray, ray, 1)
-    SPLIT_DATA_ENTRY(ccl_global PathState, path_state, 1)
-    SPLIT_DATA_ENTRY(ccl_global Intersection, isect, 1)
-    SPLIT_DATA_ENTRY(ccl_global BsdfEval, bsdf_eval, 1)
-    SPLIT_DATA_ENTRY(ccl_global int, is_lamp, 1)
-    SPLIT_DATA_ENTRY(ccl_global Ray, light_ray, 1)
-    SPLIT_DATA_ENTRY(
-        ccl_global int, queue_data, (NUM_QUEUES * 2)) /* TODO(mai): this is too large? */
-    SPLIT_DATA_ENTRY(ccl_global uint, buffer_offset, 1)
-    SPLIT_DATA_ENTRY(ShaderDataTinyStorage, sd_DL_shadow, 1)
-    if (requested_features.use_subsurface) {
-      SPLIT_DATA_SUBSURFACE_ENTRIES
-    }
-    if (requested_features.use_volume) {
-      SPLIT_DATA_VOLUME_ENTRIES
-    }
-    if (requested_features.use_integrator_branched) {
-      SPLIT_DATA_BRANCHED_ENTRIES
-    }
-    SPLIT_DATA_ENTRY(ShaderData, _sd, 0)
-#  undef SPLIT_DATA_ENTRY
-
-    if (requested_features.use_integrator_branched) {
-      build_options += string(" -D_branched_state_sd_OFFSET=") + to_string(offsets[index++]) + " ";
-    }
-
-    build_options += string(" -D_sd_OFFSET=") + to_string(offsets[index++]) + " ";
 
     kernel->program = OpenCLDevice::OpenCLProgram(
         device,
@@ -469,13 +478,34 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
     uint64_t split_data_entries_num = 0;
 #  define SPLIT_DATA_ENTRY(type, name, num) ++split_data_entries_num;
 
-    SPLIT_DATA_ENTRIES;
+    SPLIT_DATA_ENTRY(ccl_global float3, throughput, 1)
+    SPLIT_DATA_ENTRY(PathRadiance, path_radiance, 1)
+    SPLIT_DATA_ENTRY(ccl_global Ray, ray, 1)
+    SPLIT_DATA_ENTRY(ccl_global PathState, path_state, 1)
+    SPLIT_DATA_ENTRY(ccl_global Intersection, isect, 1)
+    SPLIT_DATA_ENTRY(ccl_global BsdfEval, bsdf_eval, 1)
+    SPLIT_DATA_ENTRY(ccl_global int, is_lamp, 1)
+    SPLIT_DATA_ENTRY(ccl_global Ray, light_ray, 1)
+    SPLIT_DATA_ENTRY(
+        ccl_global int, queue_data, (NUM_QUEUES * 2)) /* TODO(mai): this is too large? */
+    SPLIT_DATA_ENTRY(ccl_global uint, buffer_offset, 1)
+    SPLIT_DATA_ENTRY(ShaderDataTinyStorage, sd_DL_shadow, 1)
+    if (requested_features.use_subsurface) {
+      SPLIT_DATA_SUBSURFACE_ENTRIES
+    }
+    if (requested_features.use_volume) {
+      SPLIT_DATA_VOLUME_ENTRIES
+    }
+    if (requested_features.use_integrator_branched) {
+      SPLIT_DATA_BRANCHED_ENTRIES
+    }
+    SPLIT_DATA_ENTRY(ShaderData, _sd, 0)
 #  undef SPLIT_DATA_ENTRY
 
     size_buffer.alloc(1);
     size_buffer.zero_to_device();
 
-    offsets_buffer.alloc(split_data_entries_num + 2);
+    offsets_buffer.alloc(split_data_entries_num);
     offsets_buffer.zero_to_device();
 
     uint threads = num_threads;
@@ -498,7 +528,7 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
     device->opencl_assert_err(device->ciErr, "clEnqueueNDRangeKernel");
 
     size_buffer.copy_from_device(0, 1, 1);
-    offsets_buffer.copy_from_device(0, split_data_entries_num + 2, 1);
+    offsets_buffer.copy_from_device(0, split_data_entries_num, 1);
 
     uint64_t size = size_buffer[0];
     offsets.resize(offsets_buffer.data_size);
@@ -527,7 +557,8 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
                                               device_memory &ray_state,
                                               device_memory &queue_index,
                                               device_memory &use_queues_flag,
-                                              device_memory &work_pool_wgs)
+                                              device_memory &work_pool_wgs,
+                                              vector<uint64_t> &offsets)
   {
     cl_int dQueue_size = dim.global_size[0] * dim.global_size[1];
 
@@ -541,13 +572,14 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
         (OpenCLSplitKernelFunction *)this->kernel_data_init;
     cl_kernel kernel_data_init = split_kernel_function_data_init->program();
 
-    cl_uint start_arg_index = device->kernel_set_args(kernel_data_init,
-                                                      0,
-                                                      kernel_globals,
-                                                      kernel_data,
-                                                      split_data,
-                                                      num_global_elements,
-                                                      ray_state);
+    cl_uint start_arg_index = device->kernel_set_args(
+        kernel_data_init, 0, kernel_globals, kernel_data, split_data);
+
+    for (uint64_t offset : offsets)
+      start_arg_index += device->kernel_set_args(kernel_data_init, start_arg_index, offset);
+
+    start_arg_index += device->kernel_set_args(
+        kernel_data_init, start_arg_index, num_global_elements, ray_state);
 
     device->set_kernel_arg_buffers(kernel_data_init, &start_arg_index);
 

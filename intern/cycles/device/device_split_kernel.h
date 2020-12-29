@@ -50,7 +50,10 @@ class SplitKernelFunction {
   }
 
   /* enqueue the kernel, returns false if there is an error */
-  virtual bool enqueue(const KernelDimensions &dim, device_memory &kg, device_memory &data) = 0;
+  virtual bool enqueue(const KernelDimensions &dim,
+                       device_memory &kg,
+                       device_memory &data,
+                       vector<uint64_t> &offsets) = 0;
 };
 
 class DeviceSplitKernel {
@@ -103,6 +106,7 @@ class DeviceSplitKernel {
   bool kernel_data_initialized;
   size_t local_size[2];
   size_t global_size[2];
+  vector<uint64_t> offsets;
 
  protected:
   SplitKernelFunction *kernel_data_init;
@@ -135,11 +139,12 @@ class DeviceSplitKernel {
                                               device_memory &ray_state,
                                               device_memory &queue_index,
                                               device_memory &use_queues_flag,
-                                              device_memory &work_pool_wgs) = 0;
+                                              device_memory &work_pool_wgs,
+                                              vector<uint64_t> &offsets) = 0;
 
   virtual SplitKernelFunction *get_split_kernel_function(const string &kernel_name,
                                                          const DeviceRequestedFeatures &,
-                                                         const vector<uint64_t> &offsets) = 0;
+                                                         vector<uint64_t> &offsets) = 0;
   virtual int2 split_kernel_local_size() = 0;
   virtual int2 split_kernel_global_size(device_memory &kg,
                                         device_memory &data,

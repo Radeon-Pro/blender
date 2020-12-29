@@ -103,11 +103,12 @@ class CUDASplitKernel : public DeviceSplitKernel {
                                               device_memory &ray_state,
                                               device_memory &queue_index,
                                               device_memory &use_queues_flag,
-                                              device_memory &work_pool_wgs);
+                                              device_memory &work_pool_wgs,
+                                              vector<uint64_t> &offsets);
 
   virtual SplitKernelFunction *get_split_kernel_function(const string &kernel_name,
                                                          const DeviceRequestedFeatures &,
-                                                         const vector<uint64_t>&);
+                                                         vector<uint64_t> & /*offsets*/);
   virtual int2 split_kernel_local_size();
   virtual int2 split_kernel_global_size(device_memory &kg, device_memory &data, DeviceTask &task);
 };
@@ -2500,7 +2501,10 @@ class CUDASplitKernelFunction : public SplitKernelFunction {
   }
 
   /* enqueue the kernel, returns false if there is an error */
-  bool enqueue(const KernelDimensions &dim, device_memory & /*kg*/, device_memory & /*data*/)
+  bool enqueue(const KernelDimensions &dim,
+               device_memory & /*kg*/,
+               device_memory & /*data*/,
+               vector<uint64_t> & /*offsets*/)
   {
     return enqueue(dim, NULL);
   }
@@ -2546,7 +2550,7 @@ CUDASplitKernel::CUDASplitKernel(CUDADevice *device) : DeviceSplitKernel(device)
 uint64_t CUDASplitKernel::state_buffer_size(device_memory & /*kg*/,
                                             device_memory & /*data*/,
                                             size_t num_threads,
-                                            vector<uint64_t>&)
+                                            vector<uint64_t> & /*offsets*/)
 {
   CUDAContextScope scope(device);
 
@@ -2586,7 +2590,8 @@ bool CUDASplitKernel::enqueue_split_kernel_data_init(const KernelDimensions &dim
                                                      device_memory &ray_state,
                                                      device_memory &queue_index,
                                                      device_memory &use_queues_flag,
-                                                     device_memory &work_pool_wgs)
+                                                     device_memory &work_pool_wgs,
+                                                     vector<uint64_t> & /*offsets*/)
 {
   CUDAContextScope scope(device);
 
@@ -2653,7 +2658,7 @@ bool CUDASplitKernel::enqueue_split_kernel_data_init(const KernelDimensions &dim
 
 SplitKernelFunction *CUDASplitKernel::get_split_kernel_function(const string &kernel_name,
                                                                 const DeviceRequestedFeatures &,
-                                                                const vector<uint64_t> &)
+                                                                vector<uint64_t> & /*offsets*/)
 {
   const CUDAContextScope scope(device);
 

@@ -157,7 +157,6 @@ bool DeviceSplitKernel::path_trace(DeviceTask &task,
     work_pool_wgs.alloc_to_device(max_work_groups);
     queue_index.alloc_to_device(NUM_QUEUES);
     use_queues_flag.alloc_to_device(1);
-    vector<uint64_t> offsets;
     split_data.alloc_to_device(
         state_buffer_size(kgbuffer, kernel_data, num_global_elements, offsets));
     ray_state.alloc(num_global_elements);
@@ -206,7 +205,7 @@ bool DeviceSplitKernel::path_trace(DeviceTask &task,
     return false; \
   } \
   if (!kernel_##name->enqueue( \
-          KernelDimensions(global_size, local_size), kgbuffer, kernel_data)) { \
+          KernelDimensions(global_size, local_size), kgbuffer, kernel_data, offsets)) { \
     return false; \
   }
 
@@ -259,7 +258,8 @@ bool DeviceSplitKernel::path_trace(DeviceTask &task,
                                         ray_state,
                                         queue_index,
                                         use_queues_flag,
-                                        work_pool_wgs)) {
+                                        work_pool_wgs,
+                                        offsets)) {
       return false;
     }
 
@@ -336,15 +336,15 @@ bool DeviceSplitKernel::path_trace(DeviceTask &task,
       buffer_size[0] = round_up(tile.w, local_size[0]);
       buffer_size[1] = round_up(tile.h, local_size[1]);
       kernel_adaptive_stopping->enqueue(
-          KernelDimensions(buffer_size, local_size), kgbuffer, kernel_data);
+          KernelDimensions(buffer_size, local_size), kgbuffer, kernel_data, offsets);
       buffer_size[0] = round_up(tile.h, local_size[0]);
       buffer_size[1] = round_up(1, local_size[1]);
       kernel_adaptive_filter_x->enqueue(
-          KernelDimensions(buffer_size, local_size), kgbuffer, kernel_data);
+          KernelDimensions(buffer_size, local_size), kgbuffer, kernel_data, offsets);
       buffer_size[0] = round_up(tile.w, local_size[0]);
       buffer_size[1] = round_up(1, local_size[1]);
       kernel_adaptive_filter_y->enqueue(
-          KernelDimensions(buffer_size, local_size), kgbuffer, kernel_data);
+          KernelDimensions(buffer_size, local_size), kgbuffer, kernel_data, offsets);
     }
 
     double time_per_sample = ((time_dt() - start_time) / subtile.num_samples);
@@ -383,12 +383,13 @@ bool DeviceSplitKernel::path_trace(DeviceTask &task,
                                    ray_state,
                                    queue_index,
                                    use_queues_flag,
-                                   work_pool_wgs);
+                                   work_pool_wgs,
+                                   offsets);
     size_t buffer_size[2];
     buffer_size[0] = round_up(tile.w, local_size[0]);
     buffer_size[1] = round_up(tile.h, local_size[1]);
     kernel_adaptive_adjust_samples->enqueue(
-        KernelDimensions(buffer_size, local_size), kgbuffer, kernel_data);
+        KernelDimensions(buffer_size, local_size), kgbuffer, kernel_data, offsets);
   }
 
   return true;

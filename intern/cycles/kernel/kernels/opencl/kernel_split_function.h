@@ -21,7 +21,7 @@ __kernel void KERNEL_NAME_EVAL(kernel_ocl_path_trace,
                                KERNEL_NAME)(ccl_global char *kg_global,
                                             ccl_constant KernelData *data,
 
-                                            ccl_global void *split_data_buffer,
+                                            SPLIT_DATA_BUFFER_PARAMS,
                                             ccl_global char *ray_state,
 
                                             KERNEL_BUFFER_PARAMS,
@@ -60,7 +60,7 @@ __kernel void KERNEL_NAME_EVAL(kernel_ocl_path_trace,
 #ifdef __KERNEL_OPENCL__
    ,
    data,
-   split_data_buffer,
+   SPLIT_DATA_BUFFER_ARGS,
    ray_state,
    KERNEL_BUFFER_ARGS,
    queue_index,

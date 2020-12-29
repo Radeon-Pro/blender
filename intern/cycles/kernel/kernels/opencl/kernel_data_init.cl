@@ -21,10 +21,10 @@
 __kernel void kernel_ocl_path_trace_data_init(
         ccl_global char *kg,
         ccl_constant KernelData *data,
-        ccl_global void *split_data_buffer,
+        SPLIT_DATA_BUFFER_PARAMS,
         int num_elements,
         ccl_global char *ray_state,
-		KERNEL_BUFFER_PARAMS,
+        KERNEL_BUFFER_PARAMS,
         int start_sample,
         int end_sample,
         int sx, int sy, int sw, int sh, int offset, int stride,
@@ -37,7 +37,7 @@ __kernel void kernel_ocl_path_trace_data_init(
 {
 	kernel_data_init((KernelGlobals*)kg,
 	                 data,
-	                 split_data_buffer,
+	                 SPLIT_DATA_BUFFER_ARGS,
 	                 num_elements,
 	                 ray_state,
 	                 KERNEL_BUFFER_ARGS,

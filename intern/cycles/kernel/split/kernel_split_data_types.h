@@ -143,86 +143,53 @@ typedef struct SplitData {
   ccl_global char *ray_state;
 } SplitData;
 
-#ifndef __KERNEL_CUDA__
-#ifndef __KERNEL_OPENCL__
-#    define kernel_split_state (kg->split_data)
-#    define kernel_split_state_buffer(buffer, type) (kernel_split_state.buffer)
-#    define kernel_split_state_buffer_addr_space(buffer, type) \
-      kernel_split_state_buffer(buffer, type)
-#    define ray_state_buffer (kernel_split_state.ray_state)
-#  else
-#    if !defined(queue_data_OFFSET)
-#      define queue_data_OFFSET ULONG_MAX
-#    endif
-#    if !defined(path_state_OFFSET)
-#      define path_state_OFFSET ULONG_MAX
-#    endif
-#    if !defined(branched_state_OFFSET)
-#      define branched_state_OFFSET ULONG_MAX
-#    endif
-#    if !defined(ray_OFFSET)
-#      define ray_OFFSET ULONG_MAX
-#    endif
-#    if !defined(path_radiance_OFFSET)
-#      define path_radiance_OFFSET ULONG_MAX
-#    endif
-#    if !defined(isect_OFFSET)
-#      define isect_OFFSET ULONG_MAX
-#    endif
-#    if !defined(light_ray_OFFSET)
-#      define light_ray_OFFSET ULONG_MAX
-#    endif
-#    if !defined(sd_DL_shadow_OFFSET)
-#      define sd_DL_shadow_OFFSET ULONG_MAX
-#    endif
-#    if !defined(bsdf_eval_OFFSET)
-#      define bsdf_eval_OFFSET ULONG_MAX
-#    endif
-#    if !defined(is_lamp_OFFSET)
-#      define is_lamp_OFFSET ULONG_MAX
-#    endif
-#    if !defined(_sd_OFFSET)
-#      define _sd_OFFSET ULONG_MAX
-#    endif
-#    if !defined(throughput_OFFSET)
-#      define throughput_OFFSET ULONG_MAX
-#    endif
-#    if !defined(buffer_offset_OFFSET)
-#      define buffer_offset_OFFSET ULONG_MAX
-#    endif
-#    if !defined(state_shadow_OFFSET)
-#      define state_shadow_OFFSET ULONG_MAX
-#    endif
+#if defined(__KERNEL_OPENCL__)
 
-#    define kernel_split_state_buffer(buffer, type) \
-        ((ccl_global type *)((ccl_global char *)split_data_buffer + buffer##_OFFSET))
+#  define kernel_split_state_buffer(name, type) \
+    ((ccl_global type *)((ccl_global char *)split_data_buffer + name##_offset))
 
-#    define kernel_split_state_buffer_addr_space(buffer, type) \
-        ((type *)((ccl_global char *)split_data_buffer + buffer##_OFFSET))
+#  define kernel_split_state_buffer_addr_space(name, type) \
+    ((type *)((ccl_global char *)split_data_buffer + name##_offset))
 
-#    define ray_state_buffer ray_state
-#  endif
-//#  define kernel_split_state (kg->split_data)
-#  define kernel_split_params (kg->split_param_data)
-#else
+#  define ray_state_buffer ray_state
+
+#elif defined(__KERNEL_CUDA__)
+
 __device__ SplitData __split_data;
 #  define kernel_split_state (__split_data)
+
 __device__ SplitParams __split_param_data;
 #  define kernel_split_params (__split_param_data)
+
+#else
+#  define kernel_split_state (kg->split_data)
+#  define kernel_split_state_buffer(name, type) (kernel_split_state.name)
+#  define kernel_split_state_buffer_addr_space(name, type) kernel_split_state_buffer(name, type)
+#endif
+
+#ifndef __KERNEL_CUDA__
+#  define kernel_split_params (kg->split_param_data)
 #endif /* __KERNEL_CUDA__ */
 
 #ifndef __KERNEL_OPENCL__
+#  define SPLIT_DATA_BUFFER_PARAMS ccl_global void *split_data_buffer
+#  define SPLIT_DATA_BUFFER_ARGS split_data_buffer
+#  define ray_state_buffer (kernel_split_state.ray_state)
+
 #  define kernel_split_sd(sd, ray_index) \
   ((ShaderData *)(((ccl_global char *)kernel_split_state._##sd) + \
                   (sizeof(ShaderData) + \
                    sizeof(ShaderClosure) * (kernel_data.integrator.max_closures - 1)) * \
                       (ray_index)))
+
 #else
+
 #  define kernel_split_sd(sd, ray_index) \
     ((ShaderData *)((kernel_split_state_buffer_addr_space(_##sd, char)) + \
                     (sizeof(ShaderData) + \
                      sizeof(ShaderClosure) * (kernel_data.integrator.max_closures - 1)) * \
                         (ray_index)))
+
 #endif
 
 /* Local storage for queue_enqueue kernel. */

@@ -34,7 +34,7 @@ kernel_split_branched_path_volume_indirect_light_init(
 ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(
   KernelGlobals *kg,
 #  ifdef __KERNEL_OPENCL__
-  ccl_global void *split_data_buffer,
+  SPLIT_DATA_BUFFER_PARAMS,
 #  endif
 #  ifdef __SPLIT_KERNEL__
   ccl_global PathState *state_shadow,
@@ -143,7 +143,7 @@ ccl_device void kernel_do_volume(KernelGlobals *kg
 #ifdef __KERNEL_OPENCL__
                                  ,
                                  ccl_constant KernelData *data,
-                                 ccl_global void *split_data_buffer,
+                                 SPLIT_DATA_BUFFER_PARAMS,
                                  ccl_global char *ray_state,
                                  KERNEL_BUFFER_PARAMS,
                                  ccl_global int *queue_index,
@@ -243,7 +243,7 @@ ccl_device void kernel_do_volume(KernelGlobals *kg
         if (kernel_split_branched_path_volume_indirect_light_iter(
           kg,
 #    ifdef __KERNEL_OPENCL__
-          split_data_buffer,
+          SPLIT_DATA_BUFFER_ARGS,
 #    endif
 #    ifdef __SPLIT_KERNEL__
           &kernel_split_state_buffer(state_shadow, PathState)[ray_index],
@@ -275,7 +275,7 @@ ccl_device void kernel_do_volume(KernelGlobals *kg
 
     if (kernel_split_branched_path_volume_indirect_light_iter(kg,
 #    ifdef __KERNEL_OPENCL__
-            split_data_buffer,
+            SPLIT_DATA_BUFFER_ARGS,
 #    endif
 #    ifdef __SPLIT_KERNEL__
             &kernel_split_state_buffer(state_shadow, PathState)[ray_index],
