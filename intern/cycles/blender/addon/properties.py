@@ -196,6 +196,10 @@ def enum_optix_denoiser(self, context):
         return [('OPTIX', "OptiX", "Use the OptiX AI denoiser with GPU acceleration, only available on NVIDIA GPUs", 2)]
     return []
 
+def enum_rif_denoiser(self, context):
+    if not context or bool(context.preferences.addons[__package__].preferences.get_devices_for_type('OPENCL')):
+        return [('RIF', "RIF", "Use Radeon Image Filters AI denoiser, running on any compute device"), 8]
+    return []
 
 def enum_preview_denoiser(self, context):
     optix_items = enum_optix_denoiser(self, context)
@@ -213,9 +217,9 @@ def enum_preview_denoiser(self, context):
 
 def enum_denoiser(self, context):
     items = [('NLM', "NLM", "Cycles native non-local means denoiser, running on any compute device", 1)]
-    items += [('RIF', "RIF", "Radeon image filters AI denoiser, running on any compute device", 8)]
     items += enum_optix_denoiser(self, context)
     items += enum_openimagedenoise_denoiser(self, context)
+    items += enum_rif_denoiser(self, context)
     return items
 
 

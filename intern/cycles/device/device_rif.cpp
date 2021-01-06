@@ -490,6 +490,8 @@ class RIFDevice : public OpenCLDevice {
       check_result_rif_ret(rifCommandQueueDetachImageFilter(queue, remap_normal_filter));
       check_result_rif_ret(rifCommandQueueDetachImageFilter(queue, remap_depth_filter));
     }
+
+    return true;
   }
 
   bool launch_denoise(DeviceTask &task, RenderTile &rtile, DenoisingTask &denoising)
