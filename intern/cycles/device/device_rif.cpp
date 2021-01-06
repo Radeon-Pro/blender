@@ -39,6 +39,8 @@
 #  include <RadeonImageFilters_cl.h>
 
 #  define RIF_DENOISER_NO_PIXEL_STRIDE 1
+#  define RIF_DLL_LOCATION "C:/Program Files/AMD/CNext/CNext/RadeonImageFilters.dll"
+#  define RIF_MODELS_LOCATION "C:/Program Files/AMD/CNext/CNext/models/"
 
 CCL_NAMESPACE_BEGIN
 
@@ -67,9 +69,42 @@ CCL_NAMESPACE_BEGIN
     } \
     (void)0
 
+bool shouldUpgradeDriver()
+{
+  HKEY hKey = HKEY_LOCAL_MACHINE;
+  LPCSTR subKey = "SOFTWARE\\AMD\\CN";
+  LPCSTR valueName = "CNVersion";
+  DWORD dataSize{};
+  LONG lRes = RegGetValue(hKey, subKey, valueName, RRF_RT_REG_SZ, nullptr, nullptr, &dataSize);
+  if (lRes != ERROR_SUCCESS) {
+    VLOG(1) << "Cannot read string from registry " << HRESULT_FROM_WIN32(lRes);
+    return false;
+  }
+  std::string data;
+  data.resize(dataSize);
+  lRes = RegGetValue(
+      hKey, subKey, valueName, RRF_RT_REG_SZ, nullptr, &data[0], &dataSize);
+  if (lRes != ERROR_SUCCESS) {
+    VLOG(1) << "Cannot read string from registry " << HRESULT_FROM_WIN32(lRes);
+    return false;
+  }
+  DWORD strLenInChars = dataSize;
+  strLenInChars--;
+  data.resize(strLenInChars);
+  VLOG(1) << "AMD Driver Version: " << data.c_str();
+  int major = 0, minor = 0;
+  if (sscanf_s(data.c_str(), "%d.%d", &major, &minor) == 2) {
+    if (major < 20)
+      return true;
+    else if (major == 20 && minor < 45)
+      return true;
+  }
+  return false;
+}
+
 HMODULE LoadRIFDll(LPCSTR moduleName)
 {
-  return LoadLibraryA("C:/Program Files/AMD/CNext/CNext/RadeonImageFilters.dll");
+  return LoadLibraryA(RIF_DLL_LOCATION);
 }
 
 FARPROC WINAPI RIFDliNotifyHook(unsigned dliNotify, PDelayLoadInfo pdli)
@@ -149,6 +184,8 @@ class RIFDevice : public OpenCLDevice {
     check_result_rif(
         rifContextCreateImageFilter(context, RIF_IMAGE_FILTER_AI_DENOISE, &denoise_filter));
     check_result_rif(rifImageFilterSetParameter1u(denoise_filter, "useHDR", RIF_TRUE));
+    check_result_rif(
+        rifImageFilterSetParameterString(denoise_filter, "modelPath", RIF_MODELS_LOCATION));
 
     // Create RIF remap filter for normals
     check_result_rif(
@@ -532,6 +569,11 @@ class RIFDevice : public OpenCLDevice {
 
 bool device_rif_init()
 {
+  if (shouldUpgradeDriver()) {
+    MessageBoxA(
+        NULL, "AMD Radeon Driver Version 20.45 or higher required to use Radeon Image Filters(RIF) denoising. Please upgrade graphics driver!", "Driver Update Needed", 0);
+    return false;
+  }
   // Need to initialize OpenCL as well
   if (!device_opencl_init())
     return false;
