@@ -38,7 +38,6 @@
 #  include <RadeonImageFilters.h>
 #  include <RadeonImageFilters_cl.h>
 
-#  define RIF_DENOISER_NO_PIXEL_STRIDE 1
 #  define RIF_DLL_LOCATION "C:/Program Files/AMD/CNext/CNext/RadeonImageFilters.dll"
 #  define RIF_MODELS_LOCATION "C:/Program Files/AMD/CNext/CNext/models/"
 
@@ -173,7 +172,7 @@ class RIFDevice : public OpenCLDevice {
     }
 
     // Create RIF context
-    auto &cache_path = boost::filesystem::temp_directory_path().string();
+    const string cache_path = path_cache_get(path_join("kernels", "rif"));
     check_result_rif(rifCreateContextFromOpenClContext(
         RIF_API_VERSION, cxContext, cdDevice, cqCommandQueue, cache_path.c_str(), &context));
 

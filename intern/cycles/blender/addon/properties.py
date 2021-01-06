@@ -198,7 +198,7 @@ def enum_optix_denoiser(self, context):
 
 def enum_rif_denoiser(self, context):
     if not context or bool(context.preferences.addons[__package__].preferences.get_devices_for_type('OPENCL')):
-        return [('RIF', "RIF", "Use Radeon Image Filters AI denoiser, running on any compute device"), 8]
+        return [('RIF', "RIF", "Use Radeon Image Filters AI denoiser, only available on AMD GPUs"), 8]
     return []
 
 def enum_preview_denoiser(self, context):
