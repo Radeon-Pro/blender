@@ -38,7 +38,6 @@
 #  include <RadeonImageFilters.h>
 #  include <RadeonImageFilters_cl.h>
 
-#  define RIF_DENOISER_NO_PIXEL_STRIDE 1
 #  define RIF_DLL_LOCATION "C:/Program Files/AMD/CNext/CNext/RadeonImageFilters.dll"
 #  define RIF_MODELS_LOCATION "C:/Program Files/AMD/CNext/CNext/models/"
 
