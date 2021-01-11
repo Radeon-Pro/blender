@@ -146,10 +146,10 @@ typedef struct SplitData {
 #if defined(__KERNEL_OPENCL__)
 
 #  define kernel_split_state_buffer(name, type) \
-    ((ccl_global type *)((ccl_global char *)split_data_buffer + name##_offset))
+    ((ccl_global type *)((ccl_global char *)split_data_buffer + name##__offset))
 
 #  define kernel_split_state_buffer_addr_space(name, type) \
-    ((type *)((ccl_global char *)split_data_buffer + name##_offset))
+    ((type *)((ccl_global char *)split_data_buffer + name##__offset))
 
 #  define ray_state_buffer ray_state
 

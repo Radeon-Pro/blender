@@ -221,8 +221,8 @@ string OpenCLDevice::get_build_options(const DeviceRequestedFeatures &requested_
   string split_data_buffer_args = "-DSPLIT_DATA_BUFFER_ARGS=split_data_buffer";
 
 #  define SPLIT_DATA_ENTRY(type, name, num) \
-    split_data_buffer_params += ",ulong/**/" #name "_offset"; \
-    split_data_buffer_args += "," #name "_offset";
+    split_data_buffer_params += ",ulong/**/" #name "__offset"; \
+    split_data_buffer_args += "," #name "__offset";
 
   SPLIT_DATA_ENTRY(ccl_global float3, throughput, 1)
   SPLIT_DATA_ENTRY(PathRadiance, path_radiance, 1)

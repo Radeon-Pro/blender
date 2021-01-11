@@ -45,7 +45,12 @@ ccl_device void kernel_indirect_background(KernelGlobals *kg
       if (IS_STATE(ray_state_buffer, ray_index, RAY_ACTIVE)) {
         ccl_global PathState *state = &kernel_split_state_buffer(path_state, PathState)[ray_index];
         if (path_state_ao_bounce(kg, state)) {
-          kernel_split_path_end(kg, ray_state_buffer, ray_index);
+          kernel_split_path_end(kg,
+#ifdef __KERNEL_OPENCL__
+                                SPLIT_DATA_BUFFER_ARGS,
+#endif
+                                ray_state_buffer,
+                                ray_index);
         }
       }
     }
@@ -72,7 +77,12 @@ ccl_device void kernel_indirect_background(KernelGlobals *kg
     ccl_global float *buffer = kernel_split_params.tile.buffer + buffer_offset;
 
     kernel_path_background(kg, state, ray, throughput, sd, buffer, L);
-    kernel_split_path_end(kg, ray_state_buffer, ray_index);
+    kernel_split_path_end(kg,
+#ifdef __KERNEL_OPENCL__
+                          SPLIT_DATA_BUFFER_ARGS,
+#endif
+                          ray_state_buffer,
+                          ray_index);
   }
 }
 

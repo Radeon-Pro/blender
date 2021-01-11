@@ -48,19 +48,27 @@ CCL_NAMESPACE_BEGIN
 #ifdef __BRANCHED_PATH__
 ccl_device_inline void kernel_split_branched_indirect_light_init(
     KernelGlobals *kg,
+#  ifdef __KERNEL_OPENCL__
+    SPLIT_DATA_BUFFER_PARAMS,
     ccl_global char *ray_state,
+#  endif
     int ray_index)
 {
-  kernel_split_branched_path_indirect_loop_init(kg, ray_index);
+  kernel_split_branched_path_indirect_loop_init(kg,
+#  ifdef __KERNEL_OPENCL__
+                                                SPLIT_DATA_BUFFER_ARGS,
+                                                ray_state,
+#  endif
+                                                ray_index);
 
   ADD_RAY_FLAG(ray_state_buffer, ray_index, RAY_BRANCHED_LIGHT_INDIRECT);
 }
 
 ccl_device void kernel_split_branched_transparent_bounce(KernelGlobals *kg,
-#ifdef __KERNEL_OPENCL__
+#  ifdef __KERNEL_OPENCL__
                                                          SPLIT_DATA_BUFFER_PARAMS,
-#  endif
                                                          ccl_global char *ray_state,
+#  endif
                                                          int ray_index)
 {
   ccl_global float3 *throughput = &kernel_split_state_buffer(throughput, float3)[ray_index];
@@ -75,7 +83,12 @@ ccl_device void kernel_split_branched_transparent_bounce(KernelGlobals *kg,
     *throughput *= shader_bsdf_transparency(kg, sd);
 
     if (is_zero(*throughput)) {
-      kernel_split_path_end(kg, ray_state_buffer, ray_index);
+      kernel_split_path_end(kg,
+#  ifdef __KERNEL_OPENCL__
+                            SPLIT_DATA_BUFFER_ARGS,
+#  endif
+                            ray_state_buffer,
+                            ray_index);
       return;
     }
 
@@ -85,7 +98,12 @@ ccl_device void kernel_split_branched_transparent_bounce(KernelGlobals *kg,
   }
   else {
     if (!path_state_volume_next(kg, state)) {
-      kernel_split_path_end(kg, ray_state_buffer, ray_index);
+      kernel_split_path_end(kg,
+#    ifdef __KERNEL_OPENCL__
+                            SPLIT_DATA_BUFFER_ARGS,
+#    endif
+                            ray_state_buffer,
+                            ray_index);
       return;
     }
   }
@@ -168,7 +186,12 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg,
 #endif
       /* Compute direct lighting and next bounce. */
       if (!kernel_path_surface_bounce(kg, sd, throughput, state, &L->state, ray)) {
-        kernel_split_path_end(kg, ray_state_buffer, ray_index);
+        kernel_split_path_end(kg,
+#ifdef __KERNEL_OPENCL__
+                              SPLIT_DATA_BUFFER_ARGS,
+#endif
+                              ray_state_buffer,
+                              ray_index);
       }
 #ifdef __BRANCHED_PATH__
     }
@@ -176,24 +199,43 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg,
       kernel_split_branched_transparent_bounce(kg,
 #  ifdef __KERNEL_OPENCL__
                                                SPLIT_DATA_BUFFER_ARGS,
-#  endif
                                                ray_state_buffer,
+#  endif
                                                ray_index);
     }
     else {
-      kernel_split_branched_indirect_light_init(kg, ray_state_buffer, ray_index);
+      kernel_split_branched_indirect_light_init(kg,
+#  ifdef __KERNEL_OPENCL__
+                                                SPLIT_DATA_BUFFER_ARGS,
+                                                ray_state_buffer,
+#  endif
+                                                ray_index);
 
       if (kernel_split_branched_path_surface_indirect_light_iter(
-              kg, ray_index, 1.0f, kernel_split_sd(branched_state_sd, ray_index), true, true)) {
+              kg,
+#  ifdef __KERNEL_OPENCL__
+              SPLIT_DATA_BUFFER_ARGS,
+              ray_state,
+#  endif
+              ray_index,
+              1.0f,
+              kernel_split_sd(branched_state_sd, ray_index),
+              true,
+              true)) {
         ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);
       }
       else {
-        kernel_split_branched_path_indirect_loop_end(kg, ray_index);
+        kernel_split_branched_path_indirect_loop_end(kg,
+#  ifdef __KERNEL_OPENCL__
+                                                     SPLIT_DATA_BUFFER_ARGS,
+                                                     ray_state_buffer,
+#  endif
+                                                     ray_index);
         kernel_split_branched_transparent_bounce(kg,
 #  ifdef __KERNEL_OPENCL__
                                                  SPLIT_DATA_BUFFER_ARGS,
-#  endif
                                                  ray_state_buffer,
+#  endif
                                                  ray_index);
       }
     }
@@ -231,16 +273,30 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg,
     path_radiance_reset_indirect(L);
 
     if (kernel_split_branched_path_surface_indirect_light_iter(
-            kg, ray_index, 1.0f, kernel_split_sd(branched_state_sd, ray_index), true, true)) {
+            kg,
+#  ifdef __KERNEL_OPENCL__
+            SPLIT_DATA_BUFFER_ARGS,
+            ray_state,
+#  endif
+            ray_index,
+            1.0f,
+            kernel_split_sd(branched_state_sd, ray_index),
+            true,
+            true)) {
       ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);
     }
     else {
-      kernel_split_branched_path_indirect_loop_end(kg, ray_index);
+      kernel_split_branched_path_indirect_loop_end(kg,
+#  ifdef __KERNEL_OPENCL__
+                                                   SPLIT_DATA_BUFFER_ARGS,
+                                                   ray_state_buffer,
+#  endif
+                                                   ray_index);
       kernel_split_branched_transparent_bounce(kg,
 #  ifdef __KERNEL_OPENCL__
                                                SPLIT_DATA_BUFFER_ARGS,
-#  endif
                                                ray_state_buffer,
+#  endif
                                                ray_index);
     }
   }

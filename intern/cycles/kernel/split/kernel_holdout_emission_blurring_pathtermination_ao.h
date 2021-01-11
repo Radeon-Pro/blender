@@ -102,7 +102,12 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(
       state = &kernel_split_state_buffer(path_state, PathState)[ray_index];
 
       if (!kernel_path_shader_apply(kg, sd, state, ray, throughput, emission_sd, L, buffer)) {
-        kernel_split_path_end(kg, ray_state_buffer, ray_index);
+        kernel_split_path_end(kg,
+#ifdef __KERNEL_OPENCL__
+                              SPLIT_DATA_BUFFER_ARGS,
+#endif
+                              ray_state_buffer,
+                              ray_index);
       }
     }
 
@@ -114,12 +119,22 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(
       float probability = path_state_continuation_probability(kg, state, throughput);
 
       if (probability == 0.0f) {
-        kernel_split_path_end(kg, ray_state_buffer, ray_index);
+        kernel_split_path_end(kg,
+#ifdef __KERNEL_OPENCL__
+                              SPLIT_DATA_BUFFER_ARGS,
+#endif
+                              ray_state_buffer,
+                              ray_index);
       }
       else if (probability < 1.0f) {
         float terminate = path_state_rng_1D(kg, state, PRNG_TERMINATE);
         if (terminate >= probability) {
-          kernel_split_path_end(kg, ray_state_buffer, ray_index);
+          kernel_split_path_end(kg,
+#ifdef __KERNEL_OPENCL__
+                                SPLIT_DATA_BUFFER_ARGS,
+#endif
+                                ray_state_buffer,
+                                ray_index);
         }
         else {
           kernel_split_state_buffer(throughput, float3)[ray_index] = throughput / probability;

@@ -21,12 +21,18 @@ CCL_NAMESPACE_BEGIN
 ccl_device_inline void
 kernel_split_branched_path_volume_indirect_light_init(
   KernelGlobals *kg,
-#ifdef __KERNEL_OPENCL__
+#  ifdef __KERNEL_OPENCL__
+  SPLIT_DATA_BUFFER_PARAMS,
   ccl_global char *ray_state,
 #endif
   int ray_index)
 {
-  kernel_split_branched_path_indirect_loop_init(kg, ray_index);
+  kernel_split_branched_path_indirect_loop_init(kg,
+#  ifdef __KERNEL_OPENCL__
+                                                SPLIT_DATA_BUFFER_ARGS,
+                                                ray_state,
+#  endif
+                                                ray_index);
 
   ADD_RAY_FLAG(ray_state_buffer, ray_index, RAY_BRANCHED_VOLUME_INDIRECT);
 }
@@ -35,14 +41,15 @@ ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(
   KernelGlobals *kg,
 #  ifdef __KERNEL_OPENCL__
   SPLIT_DATA_BUFFER_PARAMS,
+  ccl_global char *ray_state,
 #  endif
 #  ifdef __SPLIT_KERNEL__
   ccl_global PathState *state_shadow,
 #  endif
   int ray_index)
 {
-  SplitBranchedState *branched_state = &kernel_split_state_buffer(branched_state,
-                                                                  SplitBranchedState)[ray_index];
+  SplitBranchedState *branched_state = &kernel_split_state_buffer_addr_space(
+      branched_state, SplitBranchedState)[ray_index];
 
   ShaderData *sd = kernel_split_sd(sd, ray_index);
   PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index];
@@ -106,7 +113,12 @@ ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(
        * number of shared samples here helps quite a lot.
        */
       if (branched_state->shared_sample_count < 2) {
-        if (kernel_split_branched_indirect_start_shared(kg, ray_index)) {
+        if (kernel_split_branched_indirect_start_shared(kg,
+#    ifdef __KERNEL_OPENCL__
+                                                        SPLIT_DATA_BUFFER_ARGS,
+                                                        ray_state,
+#    endif
+                                                        ray_index)) {
           continue;
         }
       }
@@ -123,7 +135,12 @@ ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(
     return true;
   }
 
-  kernel_split_branched_path_indirect_loop_end(kg, ray_index);
+  kernel_split_branched_path_indirect_loop_end(kg,
+#  ifdef __KERNEL_OPENCL__
+                                               SPLIT_DATA_BUFFER_ARGS,
+                                               ray_state_buffer,
+#  endif
+                                               ray_index);
 
   /* todo: avoid this calculation using decoupled ray marching */
   float3 throughput = kernel_split_state_buffer(throughput, float3)[ray_index];
@@ -225,7 +242,12 @@ ccl_device void kernel_do_volume(KernelGlobals *kg
               ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);
             }
             else {
-              kernel_split_path_end(kg, ray_state_buffer, ray_index);
+              kernel_split_path_end(kg,
+#    ifdef __KERNEL_OPENCL__
+                                    SPLIT_DATA_BUFFER_ARGS,
+#    endif
+                                    ray_state_buffer,
+                                    ray_index);
             }
           }
 #  endif /* __VOLUME_SCATTER__ */
@@ -237,6 +259,7 @@ ccl_device void kernel_do_volume(KernelGlobals *kg
         kernel_split_branched_path_volume_indirect_light_init(
           kg,
 #    ifdef __KERNEL_OPENCL__
+          SPLIT_DATA_BUFFER_ARGS,
           ray_state_buffer,
 #    endif
           ray_index);
@@ -244,6 +267,7 @@ ccl_device void kernel_do_volume(KernelGlobals *kg
           kg,
 #    ifdef __KERNEL_OPENCL__
           SPLIT_DATA_BUFFER_ARGS,
+          ray_state_buffer,
 #    endif
 #    ifdef __SPLIT_KERNEL__
           &kernel_split_state_buffer(state_shadow, PathState)[ray_index],
@@ -273,14 +297,16 @@ ccl_device void kernel_do_volume(KernelGlobals *kg
     path_radiance_reset_indirect(
         &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index]);
 
-    if (kernel_split_branched_path_volume_indirect_light_iter(kg,
+    if (kernel_split_branched_path_volume_indirect_light_iter(
+      kg,
 #    ifdef __KERNEL_OPENCL__
-            SPLIT_DATA_BUFFER_ARGS,
+      SPLIT_DATA_BUFFER_ARGS,
+      ray_state_buffer,
 #    endif
 #    ifdef __SPLIT_KERNEL__
-            &kernel_split_state_buffer(state_shadow, PathState)[ray_index],
+      &kernel_split_state_buffer(state_shadow, PathState)[ray_index],
 #    endif
-            ray_index)) {
+      ray_index)) {
       ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);
     }
   }

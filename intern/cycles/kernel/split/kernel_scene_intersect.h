@@ -60,7 +60,12 @@ ccl_device void kernel_scene_intersect(KernelGlobals *kg
 #ifdef __BRANCHED_PATH__
     if (kernel_split_state_buffer(branched_state, SplitBranchedState)[ray_index]
             .waiting_on_shared_samples) {
-      kernel_split_path_end(kg, ray_state_buffer, ray_index);
+      kernel_split_path_end(kg,
+#  ifdef __KERNEL_OPENCL__
+                            SPLIT_DATA_BUFFER_ARGS,
+#  endif
+                            ray_state_buffer,
+                            ray_index);
     }
     else
 #endif /* __BRANCHED_PATH__ */

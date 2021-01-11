@@ -58,6 +58,9 @@
 CCL_NAMESPACE_BEGIN
 
 ccl_device_inline void kernel_split_path_end(KernelGlobals *kg,
+#ifdef __KERNEL_OPENCL__
+                                             SPLIT_DATA_BUFFER_PARAMS,
+#endif
                                              ccl_global char *ray_state,
                                              int ray_index)
 {
