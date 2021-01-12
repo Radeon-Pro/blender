@@ -163,11 +163,10 @@ class CPUSplitKernel : public DeviceSplitKernel {
                                               device_memory &queue_index,
                                               device_memory &use_queues_flag,
                                               device_memory &work_pool_wgs,
-                                              vector<uint64_t> &offsets);
+                                              const vector<uint64_t> & /*offsets*/);
 
   virtual SplitKernelFunction *get_split_kernel_function(const string &kernel_name,
-                                                         const DeviceRequestedFeatures &,
-                                                         vector<uint64_t> & /*offsets*/);
+                                                         const DeviceRequestedFeatures &);
   virtual int2 split_kernel_local_size();
   virtual int2 split_kernel_global_size(device_memory &kg, device_memory &data, DeviceTask &task);
   virtual uint64_t state_buffer_size(device_memory &kg,
@@ -1552,7 +1551,7 @@ bool CPUSplitKernel::enqueue_split_kernel_data_init(const KernelDimensions &dim,
                                                     device_memory &queue_index,
                                                     device_memory &use_queues_flags,
                                                     device_memory &work_pool_wgs,
-                                                    vector<uint64_t> &offsets)
+                                                    const vector<uint64_t> & /*offsets*/)
 {
   KernelGlobals *kg = (KernelGlobals *)kernel_globals.device_pointer;
   kg->global_size = make_int2(dim.global_size[0], dim.global_size[1]);
@@ -1587,8 +1586,7 @@ bool CPUSplitKernel::enqueue_split_kernel_data_init(const KernelDimensions &dim,
 }
 
 SplitKernelFunction *CPUSplitKernel::get_split_kernel_function(const string &kernel_name,
-                                                               const DeviceRequestedFeatures &,
-                                                               vector<uint64_t> & /*offsets*/)
+                                                               const DeviceRequestedFeatures &)
 {
   CPUSplitKernelFunction *kernel = new CPUSplitKernelFunction(device);
 

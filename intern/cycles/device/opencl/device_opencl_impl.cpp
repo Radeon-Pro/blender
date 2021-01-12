@@ -439,25 +439,20 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
 
   virtual SplitKernelFunction *get_split_kernel_function(
       const string &kernel_name,
-      const DeviceRequestedFeatures &requested_features,
-      vector<uint64_t> &offsets)
+      const DeviceRequestedFeatures &requested_features)
   {
     OpenCLSplitKernelFunction *kernel = new OpenCLSplitKernelFunction(device, cached_memory);
 
     const string program_name = device->get_opencl_program_name(kernel_name);
-    string build_options = device->get_build_options(
-        requested_features, program_name, device->use_preview_kernels);
 
     kernel->program = OpenCLDevice::OpenCLProgram(
         device,
         program_name,
         device->get_opencl_program_filename(kernel_name),
-        build_options);
+        device->get_build_options(requested_features, program_name, device->use_preview_kernels));
 
     kernel->program.add_kernel(ustring("path_trace_" + kernel_name));
-    if (!kernel->program.load()) {
-      kernel->program.compile();
-    }
+    kernel->program.load();
 
     if (!kernel->program.is_loaded()) {
       delete kernel;
@@ -558,7 +553,7 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
                                               device_memory &queue_index,
                                               device_memory &use_queues_flag,
                                               device_memory &work_pool_wgs,
-                                              vector<uint64_t> &offsets)
+                                              const vector<uint64_t> &offsets)
   {
     cl_int dQueue_size = dim.global_size[0] * dim.global_size[1];
 
@@ -568,9 +563,8 @@ class OpenCLSplitKernel : public DeviceSplitKernel {
     cl_int start_sample = rtile.start_sample;
     cl_int end_sample = rtile.start_sample + rtile.num_samples;
 
-    OpenCLSplitKernelFunction *split_kernel_function_data_init =
-        (OpenCLSplitKernelFunction *)this->kernel_data_init;
-    cl_kernel kernel_data_init = split_kernel_function_data_init->program();
+    OpenCLDevice::OpenCLSplitPrograms *programs = device->get_split_programs();
+    cl_kernel kernel_data_init = programs->program_split(ustring("path_trace_data_init"));
 
     cl_uint start_arg_index = device->kernel_set_args(
         kernel_data_init, 0, kernel_globals, kernel_data, split_data);

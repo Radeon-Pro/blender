@@ -109,7 +109,6 @@ class DeviceSplitKernel {
   vector<uint64_t> offsets;
 
  protected:
-  SplitKernelFunction *kernel_data_init;
   DeviceRequestedFeatures requested_features;
 
  public:
@@ -140,11 +139,10 @@ class DeviceSplitKernel {
                                               device_memory &queue_index,
                                               device_memory &use_queues_flag,
                                               device_memory &work_pool_wgs,
-                                              vector<uint64_t> &offsets) = 0;
+                                              const vector<uint64_t> &offsets) = 0;
 
   virtual SplitKernelFunction *get_split_kernel_function(const string &kernel_name,
-                                                         const DeviceRequestedFeatures &,
-                                                         vector<uint64_t> &offsets) = 0;
+                                                         const DeviceRequestedFeatures &) = 0;
   virtual int2 split_kernel_local_size() = 0;
   virtual int2 split_kernel_global_size(device_memory &kg,
                                         device_memory &data,
