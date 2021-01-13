@@ -29,7 +29,7 @@ ccl_device_inline void kernel_split_branched_path_subsurface_indirect_light_init
   kernel_split_branched_path_indirect_loop_init(kg,
 #  ifdef __KERNEL_OPENCL__
                                                 SPLIT_DATA_BUFFER_ARGS,
-                                                ray_state,
+                                                ray_state_buffer,
 #  endif
                                                 ray_index);
 
@@ -49,6 +49,7 @@ ccl_device_noinline bool kernel_split_branched_path_subsurface_indirect_light_it
     KernelGlobals *kg,
 #  ifdef __KERNEL_OPENCL__
     SPLIT_DATA_BUFFER_PARAMS,
+    ccl_global char *ray_state,
 #  endif
     int ray_index)
 {
@@ -169,14 +170,14 @@ ccl_device_noinline bool kernel_split_branched_path_subsurface_indirect_light_it
         if (kernel_split_branched_path_surface_indirect_light_iter(
                 kg,
 #  ifdef __KERNEL_OPENCL__
-                                                                   SPLIT_DATA_BUFFER_ARGS,
-                                                                   ray_state,
+                SPLIT_DATA_BUFFER_ARGS,
+                ray_state_buffer,
 #  endif
-                                                                   ray_index,
-                                                                   num_samples_inv,
-                                                                   bssrdf_sd,
-                                                                   false,
-                                                                   false)) {
+                ray_index,
+                num_samples_inv,
+                bssrdf_sd,
+                false,
+                false)) {
           branched_state->ss_next_closure = i;
           branched_state->ss_next_sample = j;
           branched_state->next_hit = hit;
@@ -333,6 +334,7 @@ ccl_device void kernel_subsurface_scatter(KernelGlobals *kg
             kg,
 #    ifdef __KERNEL_OPENCL__
             SPLIT_DATA_BUFFER_ARGS,
+            ray_state_buffer,
 #    endif
             ray_index)) {
       ASSIGN_RAY_STATE(ray_state_buffer, ray_index, RAY_REGENERATED);

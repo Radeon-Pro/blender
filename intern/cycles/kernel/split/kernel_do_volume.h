@@ -74,7 +74,7 @@ ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(
     ccl_global Ray *pray = &kernel_split_state_buffer(ray, Ray)[ray_index];
     *pray = branched_state->ray;
 
-    ccl_global float3 *tp = &kernel_split_state_buffer(throughput, float)[ray_index];
+    ccl_global float3 *tp = &kernel_split_state_buffer(throughput, float3)[ray_index];
     *tp = branched_state->throughput * num_samples_inv;
 
     /* branch RNG state */
@@ -146,7 +146,7 @@ ccl_device_noinline bool kernel_split_branched_path_volume_indirect_light_iter(
   float3 throughput = kernel_split_state_buffer(throughput, float3)[ray_index];
   kernel_volume_shadow(kg,
                        emission_sd,
-                       &kernel_split_state_buffer_addr_space(path_state, PathState)[ray_index],
+                       &kernel_split_state_buffer(path_state, PathState)[ray_index],
                        &volume_ray,
                        &throughput);
   kernel_split_state_buffer(throughput, float3)[ray_index] = throughput;
