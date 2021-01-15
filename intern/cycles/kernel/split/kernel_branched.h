@@ -103,19 +103,51 @@ ccl_device_inline bool kernel_split_branched_indirect_start_shared(KernelGlobals
 
 #  define SPLIT_DATA_ENTRY(type, name, num) \
     if (num) { \
-      kernel_split_state_buffer(name, type)[inactive_ray] = kernel_split_state_buffer(name, type)[ray_index]; \
+      kernel_split_state_buffer(name, type)[inactive_ray] = kernel_split_state_buffer( \
+          name, type)[ray_index]; \
     }
-  SPLIT_DATA_ENTRIES_BRANCHED_SHARED
+#  define SPLIT_DATA_ENTRY_ADDR_SPACE(type, name, num) \
+    if (num) { \
+      kernel_split_state_buffer_addr_space(name, type)[inactive_ray] = kernel_split_state_buffer_addr_space( \
+          name, type)[ray_index]; \
+    }
+
+  SPLIT_DATA_ENTRY(float3, throughput, 1)
+  SPLIT_DATA_ENTRY_ADDR_SPACE(PathRadiance, path_radiance, 1)
+  SPLIT_DATA_ENTRY(Ray, ray, 1)
+  SPLIT_DATA_ENTRY(PathState, path_state, 1)
+  SPLIT_DATA_ENTRY(Intersection, isect, 1)
+  SPLIT_DATA_ENTRY(BsdfEval, bsdf_eval, 1)
+  SPLIT_DATA_ENTRY(int, is_lamp, 1)
+  SPLIT_DATA_ENTRY(Ray, light_ray, 1)
+  SPLIT_DATA_ENTRY(int, queue_data, (NUM_QUEUES * 2))
+  SPLIT_DATA_ENTRY(uint, buffer_offset, 1)
+  SPLIT_DATA_ENTRY_ADDR_SPACE(ShaderDataTinyStorage, sd_DL_shadow, 1)
+
+#  ifdef __SUBSURFACE__
+  SPLIT_DATA_ENTRY(SubsurfaceIndirectRays, ss_rays, 1)
+#  endif /* __SUBSURFACE__ */
+
+#  ifdef __VOLUME__
+  SPLIT_DATA_ENTRY(PathState, state_shadow, 1)
+#  endif /* __VOLUME__ */
+
+  SPLIT_DATA_ENTRY_ADDR_SPACE(SplitBranchedState, branched_state, 1)
+  SPLIT_DATA_ENTRY_ADDR_SPACE(ShaderData, _branched_state_sd, 0)
+
+  SPLIT_DATA_ENTRY_ADDR_SPACE(ShaderData, _sd, 0)
+
 #  undef SPLIT_DATA_ENTRY
+#  undef SPLIT_DATA_ENTRY_ADDR_SPACE
 
   *kernel_split_sd(sd, inactive_ray) = *kernel_split_sd(sd, ray_index);
   for (int i = 0; i < kernel_split_sd(sd, ray_index)->num_closure; i++) {
     kernel_split_sd(sd, inactive_ray)->closure[i] = kernel_split_sd(sd, ray_index)->closure[i];
   }
 
-  kernel_split_state_buffer(branched_state, SplitBranchedState)[inactive_ray].shared_sample_count = 0;
-  kernel_split_state_buffer(branched_state, SplitBranchedState)[inactive_ray].original_ray = ray_index;
-  kernel_split_state_buffer(branched_state, SplitBranchedState)[inactive_ray].waiting_on_shared_samples = false;
+  kernel_split_state_buffer_addr_space(branched_state, SplitBranchedState)[inactive_ray].shared_sample_count = 0;
+  kernel_split_state_buffer_addr_space(branched_state, SplitBranchedState)[inactive_ray].original_ray = ray_index;
+  kernel_split_state_buffer_addr_space(branched_state, SplitBranchedState)[inactive_ray].waiting_on_shared_samples = false;
 
   PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index];
   PathRadiance *inactive_L = &kernel_split_state_buffer_addr_space(path_radiance,
@@ -129,7 +161,7 @@ ccl_device_inline bool kernel_split_branched_indirect_start_shared(KernelGlobals
   ADD_RAY_FLAG(ray_state_buffer, inactive_ray, IS_FLAG(ray_state_buffer, ray_index, RAY_BRANCHED_INDIRECT));
 
   atomic_fetch_and_inc_uint32(
-      (ccl_global uint *)&kernel_split_state_buffer(branched_state, SplitBranchedState)[ray_index].shared_sample_count);
+      (ccl_global uint *)&kernel_split_state_buffer_addr_space(branched_state, SplitBranchedState)[ray_index].shared_sample_count);
 
   return true;
 }

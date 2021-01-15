@@ -416,7 +416,7 @@ ccl_device bool shadow_blocked_transparent_stepped_loop(KernelGlobals *kg,
 
 ccl_device bool shadow_blocked_transparent_stepped(KernelGlobals *kg,
 #    if defined(__SPLIT_KERNEL__) && defined(__VOLUME__)
-                                                   state_shadow,
+                                                   ccl_global PathState *state_shadow,
 #    endif
                                                    ShaderData *sd,
                                                    ShaderData *shadow_sd,

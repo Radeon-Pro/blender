@@ -58,7 +58,7 @@ ccl_device void kernel_scene_intersect(KernelGlobals *kg
   /* All regenerated rays become active here */
   if (IS_STATE(ray_state_buffer, ray_index, RAY_REGENERATED)) {
 #ifdef __BRANCHED_PATH__
-    if (kernel_split_state_buffer(branched_state, SplitBranchedState)[ray_index]
+    if (kernel_split_state_buffer_addr_space(branched_state, SplitBranchedState)[ray_index]
             .waiting_on_shared_samples) {
       kernel_split_path_end(kg,
 #  ifdef __KERNEL_OPENCL__

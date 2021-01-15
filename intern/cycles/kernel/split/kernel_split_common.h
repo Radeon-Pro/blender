@@ -76,7 +76,7 @@ ccl_device_inline void kernel_split_path_end(KernelGlobals *kg,
 #  endif /* __SUBSURFACE__ */
       if (IS_FLAG(ray_state, ray_index, RAY_BRANCHED_INDIRECT_SHARED)) {
     int orig_ray =
-        kernel_split_state_buffer(branched_state, SplitBranchedState)[ray_index].original_ray;
+        kernel_split_state_buffer_addr_space(branched_state, SplitBranchedState)[ray_index].original_ray;
 
     PathRadiance *L = &kernel_split_state_buffer_addr_space(path_radiance, PathRadiance)[ray_index];
     PathRadiance *orig_ray_L = &kernel_split_state_buffer_addr_space(path_radiance,
@@ -86,7 +86,7 @@ ccl_device_inline void kernel_split_path_end(KernelGlobals *kg,
     path_radiance_accum_sample(orig_ray_L, L);
 
     atomic_fetch_and_dec_uint32(
-        (ccl_global uint *)&kernel_split_state_buffer(branched_state, SplitBranchedState)[orig_ray]
+        (ccl_global uint *)&kernel_split_state_buffer_addr_space(branched_state, SplitBranchedState)[orig_ray]
             .shared_sample_count);
 
     ASSIGN_RAY_STATE(ray_state, ray_index, RAY_INACTIVE);
