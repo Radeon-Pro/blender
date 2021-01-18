@@ -62,7 +62,7 @@ ccl_device void kernel_indirect_subsurface(KernelGlobals *kg
   ccl_global float3 *throughput = &kernel_split_state_buffer(throughput, float3)[ray_index];
 
   if (IS_STATE(ray_state_buffer, ray_index, RAY_UPDATE_BUFFER)) {
-    ccl_addr_space SubsurfaceIndirectRays *ss_indirect = &kernel_split_state_buffer_addr_space(
+    ccl_addr_space SubsurfaceIndirectRays *ss_indirect = &kernel_split_state_buffer(
         ss_rays, SubsurfaceIndirectRays)[ray_index];
 
     /* Trace indirect subsurface rays by restarting the loop. this uses less
