@@ -624,9 +624,6 @@ ccl_device_forceinline void kernel_path_integrate(KernelGlobals *kg,
         /* ambient occlusion */
         if (kernel_data.integrator.use_ambient_occlusion) {
           kernel_path_ao(kg,
-#    ifdef __SPLIT_KERNEL__
-                         state_shadow,
-#    endif
                          &sd,
                          emission_sd,
                          L,
