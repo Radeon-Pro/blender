@@ -486,7 +486,7 @@ vector<DeviceInfo> Device::available_devices(uint mask)
   vector<DeviceInfo> devices;
 
 #if defined(WITH_OPENCL) || defined(WITH_RIF)
-  if (mask & DEVICE_MASK_OPENCL | DEVICE_MASK_RIF) {
+  if (mask & (DEVICE_MASK_OPENCL | DEVICE_MASK_RIF)) {
     if (!(devices_initialized_mask & DEVICE_MASK_OPENCL)) {
       if (device_opencl_init()) {
         device_opencl_info(opencl_devices);

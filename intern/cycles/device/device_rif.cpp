@@ -16,8 +16,6 @@
 
 #ifdef WITH_RIF
 
-#  include <boost/filesystem.hpp>
-
 #  include "device/device.h"
 #  include "device/device_intern.h"
 #  include "device/opencl/device_opencl.h"
@@ -33,15 +31,135 @@
 #  include "util/util_md5.h"
 #  include "util/util_path.h"
 #  include "util/util_time.h"
+#  include <RadeonImageFilters_version.h>
 
-#  include <delayimp.h>
-#  include <RadeonImageFilters.h>
-#  include <RadeonImageFilters_cl.h>
-
-#  define RIF_DLL_LOCATION "C:/Program Files/AMD/CNext/CNext/RadeonImageFilters.dll"
-#  define RIF_MODELS_LOCATION "C:/Program Files/AMD/CNext/CNext/models/"
+#  define RIF_DLL_NAME "RadeonImageFilters.dll"
+#  define RIF_MODELS_FOLDER "models/"
 
 CCL_NAMESPACE_BEGIN
+
+/* Macros from RadeonImageFilters.h */
+#  define RIF_SUCCESS 0
+#  define RIF_IMAGE_FILTER_AI_DENOISE 0x3Eu
+#  define RIF_FALSE 0u
+#  define RIF_TRUE 1u
+#  define RIF_IMAGE_FILTER_REMAP_RANGE 0x28u
+#  define RIF_COMPONENT_TYPE_FLOAT32 0x3u
+#  define RIF_BACKEND_API_OPENCL 0u
+#  define RIF_DYNLIB_LOAD GetProcAddress
+
+/* Library types for RIF */
+typedef char rif_char;
+typedef unsigned char rif_uchar;
+typedef int rif_int;
+typedef unsigned int rif_uint;
+typedef long int rif_long;
+typedef long unsigned int rif_ulong;
+typedef short int rif_short;
+typedef short unsigned int rif_ushort;
+typedef float rif_float;
+typedef double rif_double;
+typedef long long int rif_longlong;
+typedef int64_t rif_int64;
+typedef uint64_t rif_uint64;
+typedef int rif_bool;
+typedef struct rif_context_t {
+  void *_;
+} * rif_context;
+typedef struct rif_command_queue_t {
+  void *_;
+} * rif_command_queue;
+typedef struct rif_image_t {
+  void *_;
+} * rif_image;
+typedef struct rif_image_filter_t {
+  void *_;
+} * rif_image_filter;
+typedef rif_uint rif_backend_api_type;
+typedef rif_uint rif_context_info;
+typedef rif_uint rif_image_info;
+typedef rif_uint rif_device_info;
+typedef rif_uint rif_parameter_info;
+typedef rif_uint rif_parameter_type;
+typedef rif_uint rif_component_type;
+typedef rif_uint rif_image_filter_type;
+typedef rif_uint rif_image_filter_info;
+typedef rif_uint rif_image_map_type;
+typedef rif_uint rif_color_space;
+typedef rif_uint rif_interpolation_operator;
+typedef rif_uint rif_compute_type;
+
+typedef void *rif_exec_command_queue_callback(void *);
+
+struct _rif_image_desc {
+  rif_uint image_width;
+  rif_uint image_height;
+  rif_uint image_depth;
+  rif_uint image_row_pitch;    // row size in bytes
+  rif_uint image_slice_pitch;  // slice size in bytes
+
+  /*!     num_components   components
+   *       1                   grey
+   *       2                   grey, alpha
+   *       3                   red, green, blue
+   *       4                   red, green, blue, alpha
+   */
+  rif_uint num_components;
+  rif_component_type type;
+};
+
+typedef struct _rif_image_desc rif_image_desc;
+
+/* RIF Function-pointer types for type-safety */
+typedef int (CALLBACK* __rifGetDeviceCount) (unsigned int, int*);
+typedef const char* (CALLBACK* __rifGetErrorCodeString) (int);
+typedef const char* (CALLBACK* __rifGetLastErrorMessage) ();
+typedef int (CALLBACK* __rifCreateContextFromOpenClContext)(
+    uint64_t, void *, void *, void *, char const *, rif_context *);
+typedef int (CALLBACK *__rifContextCreateCommandQueue) (rif_context, rif_command_queue *);
+typedef int(CALLBACK *__rifContextCreateImageFilter)(rif_context,
+                                                     unsigned int,
+                                                     rif_image_filter *);
+typedef int(CALLBACK *__rifImageFilterSetParameter1u)(
+    rif_image_filter, char const *, unsigned int);
+typedef int(CALLBACK *__rifImageFilterSetParameterString)(rif_image_filter,
+                                                          char const *,
+                                                          char const *);
+typedef int(CALLBACK *__rifImageFilterSetParameter1f)(rif_image_filter, char const *, float);
+typedef int(CALLBACK *__rifContextCreateImageFromOpenClMemory)(rif_context,
+                                                               rif_image_desc const *,
+                                                               void *,
+                                                               rif_image *);
+typedef int(CALLBACK *__rifCommandQueueAttachImageFilter)(rif_command_queue,
+                                                          rif_image_filter,
+                                                          rif_image,
+                                                          rif_image);
+typedef int(CALLBACK *__rifImageFilterSetParameterImage)(rif_image_filter,
+                                                         char const *,
+                                                         rif_image);
+typedef int(CALLBACK *__rifImageFilterClearParameterImage)(rif_image_filter, char const *);
+typedef int(CALLBACK *__rifContextExecuteCommandQueue)(
+    rif_context, rif_command_queue, rif_exec_command_queue_callback, void *, float *);
+typedef int(CALLBACK *__rifCommandQueueDetachImageFilter)(rif_command_queue, rif_image_filter);
+typedef int(CALLBACK *__rifObjectDelete)(void *);
+
+/* Initialize function pointers for RIF */
+__rifGetDeviceCount rifGetDeviceCount = NULL;
+__rifGetErrorCodeString rifGetErrorCodeString = NULL;
+__rifGetLastErrorMessage rifGetLastErrorMessage = NULL;
+__rifCreateContextFromOpenClContext rifCreateContextFromOpenClContext = NULL;
+__rifContextCreateCommandQueue rifContextCreateCommandQueue = NULL;
+__rifContextCreateImageFilter rifContextCreateImageFilter = NULL;
+__rifImageFilterSetParameter1u rifImageFilterSetParameter1u = NULL;
+__rifImageFilterSetParameterString rifImageFilterSetParameterString = NULL;
+__rifImageFilterSetParameter1f rifImageFilterSetParameter1f = NULL;
+__rifContextCreateImageFromOpenClMemory rifContextCreateImageFromOpenClMemory = NULL;
+__rifCommandQueueAttachImageFilter rifCommandQueueAttachImageFilter = NULL;
+__rifImageFilterSetParameterImage rifImageFilterSetParameterImage = NULL;
+__rifImageFilterClearParameterImage rifImageFilterClearParameterImage = NULL;
+__rifContextExecuteCommandQueue rifContextExecuteCommandQueue = NULL;
+__rifCommandQueueDetachImageFilter rifCommandQueueDetachImageFilter = NULL;
+__rifObjectDelete rifObjectDelete = NULL;
 
 #  define check_result_rif(stmt) \
     { \
@@ -67,6 +185,31 @@ CCL_NAMESPACE_BEGIN
       } \
     } \
     (void)0
+
+string getRadeonSoftwareInstallLocation()
+{
+  string data;
+  HKEY hKey = HKEY_LOCAL_MACHINE;
+  LPCSTR subKey = "SOFTWARE\\AMD\\CN";
+  LPCSTR valueName = "InstallDir";
+  DWORD dataSize{};
+  LONG lRes = RegGetValue(hKey, subKey, valueName, RRF_RT_REG_SZ, nullptr, nullptr, &dataSize);
+  if (lRes != ERROR_SUCCESS) {
+    VLOG(1) << "Cannot read string from registry " << HRESULT_FROM_WIN32(lRes);
+    return data;
+  }
+  data.resize(dataSize);
+  lRes = RegGetValue(hKey, subKey, valueName, RRF_RT_REG_SZ, nullptr, &data[0], &dataSize);
+  if (lRes != ERROR_SUCCESS) {
+    VLOG(1) << "Cannot read string from registry " << HRESULT_FROM_WIN32(lRes);
+    return data;
+  }
+  DWORD strLenInChars = dataSize;
+  strLenInChars--;
+  data.resize(strLenInChars);
+  VLOG(1) << "Radeon Software Install Location: " << data.c_str();
+  return data;
+}
 
 bool shouldUpgradeDriver()
 {
@@ -101,32 +244,47 @@ bool shouldUpgradeDriver()
   return false;
 }
 
-HMODULE LoadRIFDll(LPCSTR moduleName)
+bool rifInit()
 {
-  return LoadLibraryA(RIF_DLL_LOCATION);
-}
-
-FARPROC WINAPI RIFDliNotifyHook(unsigned dliNotify, PDelayLoadInfo pdli)
-{
-  if (dliNotify == dliNotePreLoadLibrary)
-    return (FARPROC)LoadRIFDll(pdli->szDll);
-  else if (dliNotify == dliFailLoadLib) {
-    VLOG(1) << "RIF initialization failed. Module could not be loaded";
-    MessageBoxA(
-        NULL, "RIF initialization failed. Module could not be loaded.", "Load RIF failed", 0);
+  HMODULE rif_dll = LoadLibraryA(
+      path_join(getRadeonSoftwareInstallLocation(), RIF_DLL_NAME).c_str());
+  if (rif_dll == NULL) {
+    VLOG(1) << "Failed to load RadeonImageFilters.dll!";
+    return false;
   }
-  else if (dliNotify == dliFailGetProc) {
-    VLOG(1) << "RIF initialization failed. Could not find procedure in module";
-    MessageBoxA(NULL,
-                "RIF initialization failed. Could not find procedure in module.",
-                "Load RIF failed",
-                0);
-  }
-  return NULL;
-}
+  rifGetDeviceCount = (__rifGetDeviceCount)RIF_DYNLIB_LOAD(rif_dll, "rifGetDeviceCount");
+  rifGetErrorCodeString = (__rifGetErrorCodeString)RIF_DYNLIB_LOAD(rif_dll,
+                                                                   "rifGetErrorCodeString");
+  rifGetLastErrorMessage = (__rifGetLastErrorMessage)RIF_DYNLIB_LOAD(rif_dll,
+                                                                     "rifGetLastErrorMessage");
+  rifCreateContextFromOpenClContext = (__rifCreateContextFromOpenClContext)RIF_DYNLIB_LOAD(
+      rif_dll, "rifCreateContextFromOpenClContext");
+  rifContextCreateCommandQueue = (__rifContextCreateCommandQueue)RIF_DYNLIB_LOAD(
+      rif_dll, "rifContextCreateCommandQueue");
+  rifContextCreateImageFilter = (__rifContextCreateImageFilter)RIF_DYNLIB_LOAD(
+      rif_dll, "rifContextCreateImageFilter");
+  rifImageFilterSetParameter1u = (__rifImageFilterSetParameter1u)RIF_DYNLIB_LOAD(
+      rif_dll, "rifImageFilterSetParameter1u");
+  rifImageFilterSetParameterString = (__rifImageFilterSetParameterString)RIF_DYNLIB_LOAD(
+      rif_dll, "rifImageFilterSetParameterString");
+  rifImageFilterSetParameter1f = (__rifImageFilterSetParameter1f)RIF_DYNLIB_LOAD(
+      rif_dll, "rifImageFilterSetParameter1f");
+  rifContextCreateImageFromOpenClMemory = (__rifContextCreateImageFromOpenClMemory)RIF_DYNLIB_LOAD(
+      rif_dll, "rifContextCreateImageFromOpenClMemory");
+  rifCommandQueueAttachImageFilter = (__rifCommandQueueAttachImageFilter)RIF_DYNLIB_LOAD(
+      rif_dll, "rifCommandQueueAttachImageFilter");
+  rifImageFilterSetParameterImage = (__rifImageFilterSetParameterImage)RIF_DYNLIB_LOAD(
+      rif_dll, "rifImageFilterSetParameterImage");
+  rifImageFilterClearParameterImage = (__rifImageFilterClearParameterImage)RIF_DYNLIB_LOAD(
+      rif_dll, "rifImageFilterClearParameterImage");
+  rifContextExecuteCommandQueue = (__rifContextExecuteCommandQueue)RIF_DYNLIB_LOAD(
+      rif_dll, "rifContextExecuteCommandQueue");
+  rifCommandQueueDetachImageFilter = (__rifCommandQueueDetachImageFilter)RIF_DYNLIB_LOAD(
+      rif_dll, "rifCommandQueueDetachImageFilter");
+  rifObjectDelete = (__rifObjectDelete)RIF_DYNLIB_LOAD(rif_dll, "rifObjectDelete");
 
-extern "C" PfnDliHook __pfnDliNotifyHook2 = RIFDliNotifyHook;
-extern "C" PfnDliHook __pfnDliFailureHook2 = RIFDliNotifyHook;
+  return true;
+}
 
 class RIFDevice : public OpenCLDevice {
 
@@ -183,8 +341,10 @@ class RIFDevice : public OpenCLDevice {
     check_result_rif(
         rifContextCreateImageFilter(context, RIF_IMAGE_FILTER_AI_DENOISE, &denoise_filter));
     check_result_rif(rifImageFilterSetParameter1u(denoise_filter, "useHDR", RIF_TRUE));
-    check_result_rif(
-        rifImageFilterSetParameterString(denoise_filter, "modelPath", RIF_MODELS_LOCATION));
+    check_result_rif(rifImageFilterSetParameterString(
+        denoise_filter,
+        "modelPath",
+        path_join(getRadeonSoftwareInstallLocation(), RIF_DLL_NAME).c_str()));
 
     // Create RIF remap filter for normals
     check_result_rif(
@@ -571,14 +731,16 @@ class RIFDevice : public OpenCLDevice {
 bool device_rif_init()
 {
   if (shouldUpgradeDriver()) {
-    MessageBoxA(
-        NULL, "AMD Radeon Driver Version 20.45 or higher required to use Radeon Image Filters(RIF) denoising. Please upgrade graphics driver!", "Driver Update Needed", 0);
+    VLOG(1) << "AMD Radeon Driver Version 20.45 or higher required to use Radeon Image "
+               "Filters(RIF) denoising. Please update graphics driver!";
     return false;
   }
   // Need to initialize OpenCL as well
   if (!device_opencl_init())
     return false;
 
+  if (!rifInit())
+    return false;
   rif_int device_count = 0;
   rif_int result = rifGetDeviceCount(RIF_BACKEND_API_OPENCL, &device_count);
 
@@ -593,6 +755,7 @@ bool device_rif_init()
   }
 
   // Loaded RIF successfully!
+  VLOG(1) << "RIF initialization successful!";
   return true;
 }
 

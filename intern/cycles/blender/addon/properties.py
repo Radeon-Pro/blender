@@ -198,7 +198,7 @@ def enum_optix_denoiser(self, context):
 
 def enum_rif_denoiser(self, context):
     if not context or bool(context.preferences.addons[__package__].preferences.get_devices_for_type('OPENCL')):
-        return [('RIF', "RIF", "Use Radeon Image Filters AI denoiser, only available on AMD GPUs"), 8]
+        return [('RIF', "RIF", "Use Radeon Image Filters AI denoiser, only available on AMD GPUs", 8)]
     return []
 
 def enum_preview_denoiser(self, context):
@@ -843,8 +843,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
 
     debug_optix_cuda_streams: IntProperty(name="CUDA Streams", default=1, min=1)
     debug_optix_curves_api: BoolProperty(name="Native OptiX Curve Primitive", default=False)
-
-    debug_rif_color_only: BoolProperty(name="Color only denoising", default=True)
 
     debug_opencl_kernel_type: EnumProperty(
         name="OpenCL Kernel Type",

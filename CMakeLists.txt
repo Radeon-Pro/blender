@@ -395,7 +395,9 @@ mark_as_advanced(WITH_CYCLES_NATIVE_ONLY)
 option(WITH_CYCLES_DEVICE_CUDA              "Enable Cycles CUDA compute support" ON)
 option(WITH_CYCLES_DEVICE_OPTIX             "Enable Cycles OptiX support" OFF)
 option(WITH_CYCLES_DEVICE_OPENCL            "Enable Cycles OpenCL compute support" ON)
-option(WITH_CYCLES_DEVICE_RIF               "Enable Cycles RIF support" ON)
+if(WIN32)
+  option(WITH_CYCLES_DEVICE_RIF               "Enable Cycles Radeon Image Filters support" ON)
+endif()
 option(WITH_CYCLES_NETWORK              "Enable Cycles compute over network support (EXPERIMENTAL and unfinished)" OFF)
 mark_as_advanced(WITH_CYCLES_DEVICE_CUDA)
 mark_as_advanced(WITH_CYCLES_DEVICE_OPENCL)
@@ -1792,12 +1794,6 @@ include(build_files/cmake/packaging.cmake)
 # Use dynamic loading for OpenMP
 if(WITH_BLENDER)
   openmp_delayload(blender)
-endif()
-
-#-----------------------------------------------------------------------------
-# Use dynamic loading for RIF
-if(WITH_CYCLES_DEVICE_RIF)
-  rif_delayload(blender)
 endif()
 
 #-----------------------------------------------------------------------------
