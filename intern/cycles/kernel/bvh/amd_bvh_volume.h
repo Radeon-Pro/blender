@@ -58,7 +58,7 @@ inline __attribute__((always_inline)) bool BVH_FUNCTION_FULL_NAME(ABVH)(KernelGl
 
     if (NODE_TYPE(nodeIdx) == Leaf_Node) {
 
-      __global TriangleNode const *restrict tri = (__global TriangleNode const *restrict)(
+      __global TriangleNode_ const *restrict tri = (__global TriangleNode_ const *restrict)(
           nodes + ((nodeIdx) >> 3u));
 
       int prim_adr = tri->shape_id + prim_offset;

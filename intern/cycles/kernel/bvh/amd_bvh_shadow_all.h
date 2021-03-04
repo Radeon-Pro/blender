@@ -57,14 +57,15 @@ inline __attribute__((always_inline)) bool BVH_FUNCTION_FULL_NAME(ABVH)(KernelGl
 
     if (NODE_TYPE(nodeIdx) == 0) {
 
-      __global TriangleNode const *restrict tri = (__global TriangleNode const *restrict)(
+      __global TriangleNode_ const *restrict tri = (__global TriangleNode_ const *restrict)(
           nodes + ((nodeIdx) >> 3u));
 
       int prim_adr = tri->shape_id + prim_offset;
-      uint type = tri->prim_type;
+      uint type = PRIMITIVE_TRIANGLE;
+      //tri->prim_type;
       bool hit = false;
 #ifdef __VISIBILITY_FLAG__
-      if (tri->prim_visibility & visibility)
+      if (kernel_tex_fetch(__prim_visibility, prim_adr) & visibility)
 #endif
       {
         switch (type & PRIMITIVE_ALL) {
@@ -72,7 +73,7 @@ inline __attribute__((always_inline)) bool BVH_FUNCTION_FULL_NAME(ABVH)(KernelGl
 
             {
 
-              hit = tri_intersect(as_float4(res), isect_array);
+              hit = tri_intersect_(as_float4(res), isect_array);
 
               break;
             }
@@ -142,7 +143,7 @@ inline __attribute__((always_inline)) bool BVH_FUNCTION_FULL_NAME(ABVH)(KernelGl
 
     else if (NODE_TYPE(nodeIdx) == Object_Node) {
 
-      __global TriangleNode const *restrict tri = (global TriangleNode const *restrict)(
+      __global TriangleNode_ const *restrict tri = (global TriangleNode_ const *restrict)(
           nodes + ((nodeIdx >> 3u)));
 
       object = tri->shape_id;

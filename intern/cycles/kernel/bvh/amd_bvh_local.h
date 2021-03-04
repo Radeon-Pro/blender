@@ -62,7 +62,7 @@ inline __attribute__((always_inline)) bool BVH_FUNCTION_FULL_NAME(ABVH)(
 
     if (node_type == Leaf_Node) {
 
-      TriangleNode *tri = (TriangleNode *)(nodes + ((nodeIdx) >> 3u));
+      TriangleNode_ *tri = (TriangleNode_ *)(nodes + ((nodeIdx) >> 3u));
 
       int prim_adr = tri->shape_id + prim_offset;
       int type = tri->prim_type;

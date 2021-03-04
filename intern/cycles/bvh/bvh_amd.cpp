@@ -1,4 +1,3 @@
-//#include "bvh/bvh_amd.h"
 #include "render/mesh.h"
 #include "render/object.h"
 #include "util/util_foreach.h"
@@ -6,8 +5,9 @@
 #include "util/util_logging.h"
 #include "util/util_progress.h"
 
-#include "bvh/bvh_node.h"
-#include "bvh_amd.h"
+#include "bvh/bvh_amd.h"
+#include "bvh/bvh_encoder.h"
+#include "bvh/bvh_build.h"
 #include "render/hair.h"
 
 CCL_NAMESPACE_BEGIN
@@ -19,11 +19,81 @@ BVHAMD::BVHAMD(const BVHParams &params,
 {
 }
 
-#define INVALID_NODE 0xffffffffU
-#define MAKE_PTR(node_addr, node_type) (((node_type)&7u) | ((node_addr) << 3u))
-#define NODE_TYPE(A) (((A)) & 7u)
-#define DECODE_NODE(ind) ((ind) >> 3u)
-#define PADDING_SIZE 256
+cl_amd_bvh_node_type callback_get_node_type(cl_amd_user_bvh_node_ptr ptr)
+{
+  return ((BVHNode *)(ptr))->get_node_type();
+}
+
+cl_uint callback_get_num_children(cl_amd_user_bvh_node_ptr ptr)
+{
+  return ((BVHNode *)(ptr))->num_children();
+}
+
+cl_amd_user_bvh_node_ptr callback_get_child(cl_amd_user_bvh_node_ptr ptr, cl_uint i)
+{
+  return (cl_amd_user_bvh_node_ptr)((BVHNode *)(ptr))->get_child(i);
+}
+
+cl_amd_aabb callback_get_child_aabb(cl_amd_user_bvh_node_ptr ptr, cl_uint i)
+{
+  cl_amd_aabb bounds;
+
+  return *((cl_amd_aabb *)(&((BVHNode *)(ptr))->get_child(i)->bounds));
+}
+
+cl_uint callback_get_num_triangles(cl_amd_user_bvh_node_ptr ptr)
+{
+  return ((BVHNode *)(ptr))->num_triangles();
+}
+
+cl_amd_triangle callback_get_triangle(cl_amd_user_bvh_node_ptr ptr, cl_uint i)
+{
+
+  LeafNode::Triangle t = ((LeafNode *)(ptr))->t;
+  return *(cl_amd_triangle*)(&t);
+}
+
+cl_amd_user_bvh_node_ptr callback_get_blas(cl_amd_user_bvh_node_ptr ptr)
+{
+  return NULL;
+}
+
+cl_amd_transform callback_get_transform(cl_amd_user_bvh_node_ptr ptr)
+{
+  Transform tfm = ((LeafNode *)(ptr))->obj_tfm;
+  cl_amd_transform out;
+  memcpy(&out, &tfm, sizeof(Transform));
+  return out;
+}
+
+cl_int callback_get_instance_id(cl_amd_user_bvh_node_ptr ptr)
+{
+  return ((LeafNode *)(ptr))->object_id;
+}
+
+cl_uint callback_get_user_data_size(cl_amd_user_bvh_node_ptr ptr)
+{
+  return 0;
+}
+void *callback_get_user_data(cl_amd_user_bvh_node_ptr ptr)
+{
+  return NULL;
+}
+
+cl_int callback_get_primitve_id(cl_amd_user_bvh_node_ptr ptr)
+{
+  return ((LeafNode *)(ptr))->primitive_id;
+}
+
+cl_uint callback_get_blas_offset(cl_amd_user_bvh_node_ptr ptr)
+{
+    return ((LeafNode *)(ptr))->offset;
+}
+
+cl_uint callback_get_blas_prim_offset(cl_amd_user_bvh_node_ptr ptr)
+{
+  return ((LeafNode *)(ptr))->primitive_offset;
+}
 
 
 void BVHAMD::copy_to_device(Progress & /*progress*/, DeviceScene *dscene)
@@ -38,6 +108,157 @@ void BVHAMD::copy_to_device(Progress & /*progress*/, DeviceScene *dscene)
     dscene->bvh_amd_offset.steal_data(pack.offset);
     dscene->bvh_amd_offset.copy_to_device();
   }
+}
+
+void BVHAMD::build(Progress &progress, Stats *stats)
+{
+  progress.set_substatus("Building BVH");
+
+  pack.abvh_nodes.clear();
+  pack.prim_tri_index.clear();
+  pack.prim_tri_verts.clear();
+  pack.prim_visibility.clear();
+  pack.prim_object.clear();
+  pack.prim_type.clear();
+  pack.prim_index.clear();
+  pack.prim_tri_index.clear();
+
+  struct CallbacksWrapper {
+    cl_amd_user_bvh_callbacks callback;
+    CallbacksWrapper()
+    {
+      callback.pfn_get_node_type = callback_get_node_type;
+      callback.pfn_get_num_children = callback_get_num_children;
+      callback.pfn_get_child = callback_get_child;
+      callback.pfn_get_child_aabb = callback_get_child_aabb;
+      callback.pfn_get_num_triangles = callback_get_num_triangles;
+      callback.pfn_get_triangle = callback_get_triangle;
+      callback.pfn_get_blas = callback_get_blas;
+      callback.pfn_get_transform = callback_get_transform;
+      callback.pfn_get_user_data_size = callback_get_user_data_size;
+      callback.pfn_get_user_data = callback_get_user_data;
+      callback.pfn_get_instance_id = callback_get_instance_id;
+      callback.pfn_get_primitive_id = callback_get_primitve_id;
+      callback.pfn_get_blas_offset = callback_get_blas_offset;
+      callback.pfn_get_blas_prim_offset = callback_get_blas_prim_offset;
+    }
+  };
+
+  CallbacksWrapper cw;
+  cl_command_queue q_dummy = 0;
+  cl_mem gpu_bvh = 0;
+
+  BVHBuild bvh_build(objects,
+                     pack.prim_type,
+                     pack.prim_index,
+                     pack.prim_object,
+                     pack.prim_time,
+                     params,
+                     progress);
+
+  BVHNode *bvh2_root = bvh_build.run();
+
+  pack_primitives();
+
+  //array<uint2> primitive_offsets;
+
+  if (params.top_level) {
+
+    uint offset_index = 0;
+    uint2 amd_bvh_offset = make_uint2(0, pack.prim_index.size());
+    pack.object_node.resize(objects.size());
+    primitives_offset.resize(objects.size());
+    map<Geometry *, uint2> instance_offset;
+
+    foreach (Object *ob, objects) {
+      Geometry *geom = ob->geometry;
+
+      if (!geom->need_build_bvh(params.bvh_layout)) {
+        primitives_offset[offset_index] = 0;
+        offset_index++;
+        continue;
+      }
+
+      map<Geometry *, uint2>::iterator it = instance_offset.find(geom);
+
+      if (instance_offset.find(geom) != instance_offset.end()) {
+
+        pack.object_node[offset_index] = it->second.x;
+        primitives_offset[offset_index] = it->second.y;
+
+        offset_index++;
+
+        continue;
+      }
+
+      BVH *bvh = geom->bvh;
+
+      pack.object_node[offset_index] = amd_bvh_offset.x;
+      primitives_offset[offset_index] = amd_bvh_offset.y;
+      instance_offset[geom] = amd_bvh_offset;
+
+      offset_index++;
+
+      amd_bvh_offset.x += bvh->pack.abvh_nodes.size();
+      amd_bvh_offset.y += bvh->pack.prim_index.size();
+    }
+  }
+
+  std::vector<BVHNode *> stack;
+  stack.reserve(BVHParams::MAX_DEPTH * 2);
+
+  stack.push_back(bvh2_root);
+
+  while (!stack.empty()) {
+
+    BVHNode *entry = stack.back();
+    stack.pop_back();
+    if (entry->is_leaf()) {
+      LeafNode *leaf = (LeafNode *)(entry);
+
+      if (pack.prim_index[leaf->lo] == -1) {
+        assert(params.top_level);
+        int prim_index = (-(~leaf->lo) - 1);
+        int object_id = pack.prim_object[prim_index];
+        leaf->obj_tfm = transform_quick_inverse(objects[pack.prim_object[prim_index]]->tfm);
+        leaf->object_id = pack.prim_object[prim_index];
+        leaf->offset = pack.object_node[object_id];
+        leaf->primitive_offset = primitives_offset[object_id];
+      }
+      else {
+
+        uint tri_vindex = pack.prim_tri_index[leaf->lo];
+
+        leaf->t.v0 = float4_to_float3(pack.prim_tri_verts[tri_vindex]);
+        leaf->t.v1 = float4_to_float3(pack.prim_tri_verts[tri_vindex + 1]);
+        leaf->t.v2 = float4_to_float3(pack.prim_tri_verts[(tri_vindex + 2)]);
+
+        leaf->t.primitve_id = leaf->lo;
+        leaf->prim_type = pack.prim_type[leaf->lo];
+      }
+    }
+    else {
+
+      BVHNode *child0 = entry->get_child(0);
+      BVHNode *child1 = entry->get_child(1);
+
+      stack.push_back(child0);
+      stack.push_back(child1);
+    }
+  }
+
+  BVHEncoder bvh(q_dummy, bvh2_root, &(cw.callback), gpu_bvh, 0, NULL, NULL, params.top_level);
+
+  //BVHEncoder bvh(bvh2_root, &(cw.callback), &pack.abvh_nodes[0], params.top_level);
+
+  bvh.encode();
+  char *bvh_encoded = bvh.get_encoded_bvh();
+  pack.abvh_nodes.resize(bvh.get_bvh_size());
+
+  memcpy(&pack.abvh_nodes[0], bvh_encoded, bvh.get_bvh_size());
+
+    if (params.top_level)
+    pack_instances(0, 0);
 }
 
 
@@ -235,8 +456,11 @@ uint BVHAMD::pack_leaf(const BVHNode *node, array<ABVHNode> &abvh_node, uint &ab
     int prim_index = (-(~leaf->lo) - 1);
     abvh_leaf.tri.shape_id = pack.prim_object[prim_index];
     encoded_ptr = MAKE_PTR(abvh_cnt, Object_Node);
-    Transform tfm = transform_quick_inverse(objects[abvh_leaf.tri.shape_id]->tfm);
+    Transform tfm = //objects[abvh_leaf.tri.shape_id]->tfm;
+        transform_quick_inverse(objects[abvh_leaf.tri.shape_id]->tfm);
     abvh_leaf.object.tfm = tfm;
+    abvh_leaf.object.used[1] = pack.object_node[abvh_leaf.tri.shape_id];
+    abvh_leaf.object.used[2] = primitives_offset[abvh_leaf.tri.shape_id];
   }
   else {
     int prim_type = pack.prim_type[leaf->lo];

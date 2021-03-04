@@ -41,6 +41,7 @@ set(SRC_CUDA
 
 set(SRC_OPENCL
   opencl/device_opencl.h
+  opencl/cl_amd_raytracing.h
   opencl/device_opencl_impl.cpp
   opencl/memory_manager.h
   opencl/memory_manager.cpp

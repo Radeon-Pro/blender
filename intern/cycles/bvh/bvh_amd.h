@@ -3,8 +3,28 @@
 
 #include "bvh/bvh.h"
 #include "bvh/bvh_params.h"
+#include "bvh/bvh_node.h"
+
+#define INVALID_NODE 0xffffffffU
+#define MAKE_PTR(node_addr, node_type) (((node_type)&7u) | ((node_addr) << 3u))
+#define NODE_TYPE(A) (((A)) & 7u)
+#define DECODE_NODE(ind) ((ind) >> 3u)
+#define PADDING_SIZE 256
 
 CCL_NAMESPACE_BEGIN
+
+struct _TriangleNode_ {
+  float3 v0;
+  float3 v1;
+  float3 v2;
+  float3 v3;
+  uint id;
+  //uint triangles_count;
+  uint padding0;
+  uint padding1;
+  //uint id;
+  uint triangles_count;
+};
 
 struct TriangleNode {
   float v0x;
@@ -127,12 +147,16 @@ class BVHAMD : public BVH {
 
   uint flatten_nodes(const BVHNode *root, array<ABVHNode> &node);
   uint pack_leaf(const BVHNode *node, array<ABVHNode> &abvh_node, uint &abvh_cnt);
+  virtual void build(Progress &progress, Stats *stats);
 
   virtual void refit_nodes() override;
 
   virtual BVHNode *widen_children_nodes(const BVHNode *) override;
 
   enum Node_Type { Leaf_Node = 0, BoxNode16 = 4, BoxNode32 = 5, Object_Node = 6 };
+
+  array<uint> primitives_offset;
+
 };
 
 CCL_NAMESPACE_END

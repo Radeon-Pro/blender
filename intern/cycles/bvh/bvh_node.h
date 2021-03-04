@@ -52,7 +52,7 @@ class BVHNode {
   virtual BVHNode *get_child(int i) const = 0;
   virtual int num_triangles() const
   {
-    return 0;
+    return 1;
   }
   virtual void print(int depth = 0) const = 0;
 
@@ -87,6 +87,8 @@ class BVHNode {
     }
     return false;
   }
+
+  virtual uint get_node_type() const = 0;
 
   // Subtree functions
   int getSubtreeSize(BVH_STAT stat = BVH_STAT_NODE_COUNT) const;
@@ -203,6 +205,11 @@ class InnerNode : public BVHNode {
   }
   void print(int depth) const;
 
+  uint get_node_type() const
+  {
+    return 1;
+  }
+
   int num_children_;
   BVHNode *children[kNumMaxChildren];
 
@@ -222,6 +229,7 @@ class LeafNode : public BVHNode {
   {
     this->bounds = bounds;
     this->visibility = visibility;
+    object_id = -1;
   }
 
   LeafNode(const LeafNode &other) : BVHNode(other), lo(other.lo), hi(other.hi)
@@ -246,6 +254,28 @@ class LeafNode : public BVHNode {
   }
   void print(int depth) const;
 
+  uint get_node_type() const
+  {
+    if (object_id != -1)
+      return 2;
+    else
+      return 3;
+  }
+
+  struct Triangle {
+    float3 v0;
+    float3 v1;
+    float3 v2;
+    uint primitve_id;
+  };
+
+  Triangle t;
+  Transform obj_tfm;
+  int offset;
+  uint primitive_offset;
+  int primitive_id;
+  int object_id;
+  int prim_type;
   int lo;
   int hi;
 };
