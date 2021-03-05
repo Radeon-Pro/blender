@@ -50,10 +50,13 @@ ccl_device void kernel_shader_eval(KernelGlobals *kg)
   ccl_global char *ray_state = kernel_split_state.ray_state;
   if (IS_STATE(ray_state, ray_index, RAY_ACTIVE)) {
     ccl_global PathState *state = &kernel_split_state.path_state[ray_index];
+
+#ifndef __SVM_EVAL_NODES_SHADER_TYPE_SURFACE__SKIP__6
     uint buffer_offset = kernel_split_state.buffer_offset[ray_index];
     ccl_global float *buffer = kernel_split_params.tile.buffer + buffer_offset;
 
     shader_eval_surface(kg, kernel_split_sd(sd, ray_index), state, buffer, state->flag);
+#endif
 #ifdef __BRANCHED_PATH__
     if (kernel_data.integrator.branched) {
       shader_merge_closures(kernel_split_sd(sd, ray_index));

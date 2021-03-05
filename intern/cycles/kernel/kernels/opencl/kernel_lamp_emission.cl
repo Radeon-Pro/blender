@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define __SVM_EVAL_NODES_SHADER_TYPE_SURFACE__
+
 #include "kernel/kernel_compat_opencl.h"
 #include "kernel/split/kernel_split_common.h"
 #include "kernel/split/kernel_lamp_emission.h"

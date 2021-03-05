@@ -45,7 +45,9 @@ ccl_device_inline bool volume_shader_extinction_sample(KernelGlobals *kg,
                                                        float3 *extinction)
 {
   sd->P = P;
+#  ifdef __SVM_EVAL_NODES_SHADER_TYPE_VOLUME__
   shader_eval_volume(kg, sd, state, state->volume_stack, PATH_RAY_SHADOW);
+#  endif
 
   if (sd->flag & SD_EXTINCTION) {
     const float density = object_volume_density(kg, sd->object);
@@ -65,7 +67,9 @@ ccl_device_inline bool volume_shader_sample(KernelGlobals *kg,
                                             VolumeShaderCoefficients *coeff)
 {
   sd->P = P;
+#  ifdef __SVM_EVAL_NODES_SHADER_TYPE_VOLUME__
   shader_eval_volume(kg, sd, state, state->volume_stack, state->flag);
+#  endif
 
   if (!(sd->flag & (SD_EXTINCTION | SD_SCATTER | SD_EMISSION)))
     return false;
