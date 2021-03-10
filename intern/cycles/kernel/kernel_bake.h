@@ -38,7 +38,7 @@ ccl_device_noinline void compute_light_pass(
   path_state_init(kg, emission_sd, &state, rng_hash, sample, NULL);
 
   /* Evaluate surface shader. */
-#  ifdef __SVM_EVAL_NODES_SHADER_TYPE_SURFACE_0__
+#  if defined(__SVM_EVAL_NODES_SHADER_TYPE_SURFACE_0__)
   shader_eval_surface(kg, sd, &state, NULL, state.flag);
 #  endif
 
@@ -502,7 +502,7 @@ ccl_device void kernel_background_evaluate(KernelGlobals *kg,
   /* setup shader data */
   shader_setup_from_background(kg, &sd, &ray);
 
-#ifdef __SVM_EVAL_NODES_SHADER_TYPE_SURFACE_1__
+#if defined(__SVM_EVAL_NODES_SHADER_TYPE_SURFACE_1__)
   /* evaluate */
   int path_flag = 0; /* we can't know which type of BSDF this is for */
   shader_eval_surface(kg, &sd, &state, NULL, path_flag | PATH_RAY_EMISSION);
