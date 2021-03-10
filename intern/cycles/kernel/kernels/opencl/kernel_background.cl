@@ -1,4 +1,4 @@
-#define __SVM_EVAL_NODES_SHADER_TYPE_SURFACE__
+#define __SVM_EVAL_NODES_SHADER_TYPE_SURFACE_1__
 
 #include "kernel/kernel_compat_opencl.h"
 #include "kernel/kernel_math.h"

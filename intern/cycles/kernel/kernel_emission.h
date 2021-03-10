@@ -73,7 +73,7 @@ ccl_device_noinline_cpu float3 direct_emissive_eval(KernelGlobals *kg,
     /* No proper path flag, we're evaluating this for all closures. that's
      * weak but we'd have to do multiple evaluations otherwise. */
     path_state_modify_bounce(state, true);
-#ifndef __SVM_EVAL_NODES_SHADER_TYPE_SURFACE__SKIP__2
+#ifdef __SVM_EVAL_NODES_SHADER_TYPE_SURFACE_2__
     shader_eval_surface(kg, emission_sd, state, NULL, PATH_RAY_EMISSION);
 #endif
     path_state_modify_bounce(state, false);
@@ -319,7 +319,7 @@ ccl_device_noinline_cpu float3 indirect_background(KernelGlobals *kg,
 #  endif
 
     path_state_modify_bounce(state, true);
-#  ifndef __SVM_EVAL_NODES_SHADER_TYPE_SURFACE__SKIP__3
+#  ifdef __SVM_EVAL_NODES_SHADER_TYPE_SURFACE_3__
     shader_eval_surface(kg, emission_sd, state, buffer, state->flag | PATH_RAY_EMISSION);
 #  endif
     path_state_modify_bounce(state, false);
