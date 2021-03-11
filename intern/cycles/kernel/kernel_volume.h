@@ -45,7 +45,8 @@ ccl_device_inline bool volume_shader_extinction_sample(KernelGlobals *kg,
                                                        float3 *extinction)
 {
   sd->P = P;
-#  ifdef __SVM_EVAL_NODES_SHADER_TYPE_VOLUME__
+#  if !defined(__KERNEL_OPENCL__) || !defined(__SPLIT_KERNEL__) || \
+      defined(__SVM_EVAL_NODES_SHADER_TYPE_VOLUME__)
   shader_eval_volume(kg, sd, state, state->volume_stack, PATH_RAY_SHADOW);
 #  endif
 
@@ -67,7 +68,8 @@ ccl_device_inline bool volume_shader_sample(KernelGlobals *kg,
                                             VolumeShaderCoefficients *coeff)
 {
   sd->P = P;
-#  ifdef __SVM_EVAL_NODES_SHADER_TYPE_VOLUME__
+#  if !defined(__KERNEL_OPENCL__) || !defined(__SPLIT_KERNEL__) || \
+      defined(__SVM_EVAL_NODES_SHADER_TYPE_VOLUME__)
   shader_eval_volume(kg, sd, state, state->volume_stack, state->flag);
 #  endif
 

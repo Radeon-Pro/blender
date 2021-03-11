@@ -138,7 +138,8 @@ ccl_device void subsurface_color_bump_blur(
 
   if (bump || texture_blur > 0.0f) {
     /* average color and normal at incoming point */
-#if !defined(__KERNEL_OPENCL__) || defined(__SVM_EVAL_NODES_SHADER_TYPE_SURFACE_5__)
+#if !defined(__KERNEL_OPENCL__) || !defined(__SPLIT_KERNEL__) || \
+    defined(__SVM_EVAL_NODES_SHADER_TYPE_SURFACE_5__)
     shader_eval_surface(kg, sd, state, NULL, state->flag);
 #endif
     float3 in_color = shader_bssrdf_sum(sd, (bump) ? N : NULL, NULL);
