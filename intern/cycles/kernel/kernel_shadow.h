@@ -71,7 +71,7 @@ ccl_device_forceinline bool shadow_handle_transparent_isect(KernelGlobals *kg,
   /* Attenuation from transparent surface. */
   if (!(shadow_sd->flag & SD_HAS_ONLY_VOLUME)) {
     path_state_modify_bounce(state, true);
-#if defined(__SVM_EVAL_NODES_SHADER_TYPE_SURFACE_4__)
+#if !defined(__KERNEL_OPENCL__) || defined(__SVM_EVAL_NODES_SHADER_TYPE_SURFACE_4__)
     shader_eval_surface(kg, shadow_sd, state, NULL, PATH_RAY_SHADOW);
 #endif
     path_state_modify_bounce(state, false);

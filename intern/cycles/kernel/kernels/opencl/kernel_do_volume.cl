@@ -16,7 +16,6 @@
 
 #define __SVM_EVAL_NODES_SHADER_TYPE_VOLUME__
 #define __SVM_EVAL_NODES_SHADER_TYPE_SURFACE_2__
-#define __SVM_EVAL_NODES_SHADER_TYPE_SURFACE__
 
 #include "kernel/kernel_compat_opencl.h"
 #include "kernel/split/kernel_split_common.h"

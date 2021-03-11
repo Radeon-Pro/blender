@@ -51,7 +51,7 @@ ccl_device void kernel_shader_eval(KernelGlobals *kg)
   if (IS_STATE(ray_state, ray_index, RAY_ACTIVE)) {
     ccl_global PathState *state = &kernel_split_state.path_state[ray_index];
 
-#if defined(__SVM_EVAL_NODES_SHADER_TYPE_SURFACE_6__)
+#if !defined(__KERNEL_OPENCL__) || defined(__SVM_EVAL_NODES_SHADER_TYPE_SURFACE_6__)
     uint buffer_offset = kernel_split_state.buffer_offset[ray_index];
     ccl_global float *buffer = kernel_split_params.tile.buffer + buffer_offset;
 
