@@ -47,6 +47,9 @@ CCL_NAMESPACE_BEGIN
 #  define RIF_COMPONENT_TYPE_FLOAT32 0x3u
 #  define RIF_BACKEND_API_OPENCL 0u
 #  define RIF_DYNLIB_LOAD GetProcAddress
+#  define RIF_COMPUTE_TYPE_FLOAT 0x0u
+#  define RIF_COMPUTE_TYPE_HALF 0x1u
+#  define RIF_COMPUTE_TYPE_FLOAT16 RIF_COMPUTE_TYPE_HALF
 
 /* Library types for RIF */
 typedef char rif_char;
@@ -138,10 +141,12 @@ typedef int(CALLBACK *__rifImageFilterSetParameterImage)(rif_image_filter,
                                                          char const *,
                                                          rif_image);
 typedef int(CALLBACK *__rifImageFilterClearParameterImage)(rif_image_filter, char const *);
+typedef int(CALLBACK *__rifImageFilterSetComputeType)(rif_image_filter, rif_compute_type);
 typedef int(CALLBACK *__rifContextExecuteCommandQueue)(
     rif_context, rif_command_queue, rif_exec_command_queue_callback, void *, float *);
 typedef int(CALLBACK *__rifCommandQueueDetachImageFilter)(rif_command_queue, rif_image_filter);
 typedef int(CALLBACK *__rifObjectDelete)(void *);
+
 
 /* Initialize function pointers for RIF */
 __rifGetDeviceCount rifGetDeviceCount = NULL;
@@ -157,6 +162,7 @@ __rifContextCreateImageFromOpenClMemory rifContextCreateImageFromOpenClMemory = 
 __rifCommandQueueAttachImageFilter rifCommandQueueAttachImageFilter = NULL;
 __rifImageFilterSetParameterImage rifImageFilterSetParameterImage = NULL;
 __rifImageFilterClearParameterImage rifImageFilterClearParameterImage = NULL;
+__rifImageFilterSetComputeType rifImageFilterSetComputeType = NULL;
 __rifContextExecuteCommandQueue rifContextExecuteCommandQueue = NULL;
 __rifCommandQueueDetachImageFilter rifCommandQueueDetachImageFilter = NULL;
 __rifObjectDelete rifObjectDelete = NULL;
@@ -277,6 +283,8 @@ bool rifInit()
       rif_dll, "rifImageFilterSetParameterImage");
   rifImageFilterClearParameterImage = (__rifImageFilterClearParameterImage)RIF_DYNLIB_LOAD(
       rif_dll, "rifImageFilterClearParameterImage");
+  rifImageFilterSetComputeType = (__rifImageFilterSetComputeType)RIF_DYNLIB_LOAD(
+      rif_dll, "rifImageFilterSetComputeType");
   rifContextExecuteCommandQueue = (__rifContextExecuteCommandQueue)RIF_DYNLIB_LOAD(
       rif_dll, "rifContextExecuteCommandQueue");
   rifCommandQueueDetachImageFilter = (__rifCommandQueueDetachImageFilter)RIF_DYNLIB_LOAD(
@@ -344,7 +352,10 @@ class RIFDevice : public OpenCLDevice {
     check_result_rif(rifImageFilterSetParameterString(
         denoise_filter,
         "modelPath",
-        path_join(getRadeonSoftwareInstallLocation(), RIF_DLL_NAME).c_str()));
+        path_join(getRadeonSoftwareInstallLocation(), RIF_MODELS_FOLDER).c_str()));
+
+    // Use FP16 models for denoising
+    check_result_rif(rifImageFilterSetComputeType(denoise_filter, RIF_COMPUTE_TYPE_FLOAT16));
 
     // Create RIF remap filter for normals
     check_result_rif(

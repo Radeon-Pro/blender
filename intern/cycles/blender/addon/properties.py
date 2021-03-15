@@ -198,20 +198,22 @@ def enum_optix_denoiser(self, context):
 
 def enum_rif_denoiser(self, context):
     if not context or bool(context.preferences.addons[__package__].preferences.get_devices_for_type('OPENCL')):
-        return [('RIF', "RIF", "Use Radeon Image Filters AI denoiser, only available on AMD GPUs", 8)]
+        return [('Radeon Image Filter', "Radeon Image Filter", "Use Radeon Image Filter AI denoiser, only available on AMD GPUs", 8)]
     return []
 
 def enum_preview_denoiser(self, context):
     optix_items = enum_optix_denoiser(self, context)
     oidn_items = enum_openimagedenoise_denoiser(self, context)
+    rif_items = enum_rif_denoiser(self, context)
 
-    if len(optix_items) or len(oidn_items):
-        items = [('AUTO', "Automatic", "Use the fastest available denoiser for viewport rendering (OptiX if available, OpenImageDenoise otherwise)", 0)]
+    if len(optix_items) or len(oidn_items) or len(rif_items):
+        items = [('AUTO', "Automatic", "Use the fastest available denoiser for viewport rendering (OptiX/Radeon Image Filter if available, OpenImageDenoise otherwise)", 0)]
     else:
         items = [('AUTO', "None", "Blender was compiled without a viewport denoiser", 0)]
 
     items += optix_items
     items += oidn_items
+    items += rif_items
     return items
 
 
