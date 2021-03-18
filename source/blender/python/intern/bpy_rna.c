@@ -2061,6 +2061,19 @@ static int pyrna_py_to_prop(
               Py_XDECREF(value_new);
               return -1;
             }
+
+            if (value_owner_id->tag & LIB_TAG_TEMP_MAIN) {
+              /* Allow passing temporary ID's to functions, but not attribute assignment. */
+              if (ptr->type != &RNA_Function) {
+                PyErr_Format(PyExc_TypeError,
+                             "%.200s %.200s.%.200s ID type assignment is temporary, can't assign",
+                             error_prefix,
+                             RNA_struct_identifier(ptr->type),
+                             RNA_property_identifier(prop));
+                Py_XDECREF(value_new);
+                return -1;
+              }
+            }
           }
         }
 
@@ -4598,13 +4611,12 @@ static PyObject *pyrna_prop_collection_getattro(BPy_PropertyRNA *self, PyObject 
 #else
   {
     /* Could just do this except for 1 awkward case.
-     * PyObject_GenericGetAttr((PyObject *)self, pyname);
-     * so as to support 'bpy.data.library.load()'
-     * note, this _only_ supports static methods */
+     * `PyObject_GenericGetAttr((PyObject *)self, pyname);`
+     * so as to support `bpy.data.library.load()` */
 
     PyObject *ret = PyObject_GenericGetAttr((PyObject *)self, pyname);
 
-    if (ret == NULL && name[0] != '_') { /* Avoid inheriting __call__ and similar. */
+    if (ret == NULL && name[0] != '_') { /* Avoid inheriting `__call__` and similar. */
       /* Since this is least common case, handle it last. */
       PointerRNA r_ptr;
       if (RNA_property_collection_type_get(&self->ptr, self->prop, &r_ptr)) {
@@ -7066,13 +7078,9 @@ static PyTypeObject pyrna_prop_collection_iter_Type = {
     NULL, /* ternaryfunc tp_call; */
     NULL, /* reprfunc tp_str; */
 
-/* will only use these if this is a subtype of a py class */
-#  if defined(_MSC_VER)
-    NULL, /* defer assignment */
-#  else
+    /* will only use these if this is a subtype of a py class */
     PyObject_GenericGetAttr, /* getattrofunc tp_getattro; */
-#  endif
-    NULL, /* setattrofunc tp_setattro; */
+    NULL,                    /* setattrofunc tp_setattro; */
 
     /* Functions to access object as input/output buffer */
     NULL, /* PyBufferProcs *tp_as_buffer; */
@@ -7098,13 +7106,9 @@ static PyTypeObject pyrna_prop_collection_iter_Type = {
 #  else
     0,
 #  endif
-/*** Added in release 2.2 ***/
-/*   Iterators */
-#  if defined(_MSC_VER)
-    NULL, /* defer assignment */
-#  else
-    PyObject_SelfIter, /* getiterfunc tp_iter; */
-#  endif
+    /*** Added in release 2.2 ***/
+    /*   Iterators */
+    PyObject_SelfIter,                             /* getiterfunc tp_iter; */
     (iternextfunc)pyrna_prop_collection_iter_next, /* iternextfunc tp_iternext; */
 
     /*** Attribute descriptor and subclassing stuff ***/
@@ -7628,9 +7632,6 @@ void BPY_rna_init(void)
   /* For some reason MSVC complains of these. */
 #if defined(_MSC_VER)
   pyrna_struct_meta_idprop_Type.tp_base = &PyType_Type;
-
-  pyrna_prop_collection_iter_Type.tp_iter = PyObject_SelfIter;
-  pyrna_prop_collection_iter_Type.tp_getattro = PyObject_GenericGetAttr;
 #endif
 
   /* metaclass */

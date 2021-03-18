@@ -869,6 +869,8 @@ static const char arg_handle_log_set_doc[] =
     "\tEnable logging categories, taking a single comma separated argument.\n"
     "\tMultiple categories can be matched using a '.*' suffix,\n"
     "\tso '--log \"wm.*\"' logs every kind of window-manager message.\n"
+    "\tSub-string can be matched using a '*' prefix and suffix,\n"
+    "\tso '--log \"*undo*\"' logs every kind of undo-related message.\n"
     "\tUse \"^\" prefix to ignore, so '--log \"*,^wm.operator.*\"' logs all except for "
     "'wm.operators.*'\n"
     "\tUse \"*\" to log everything.";
@@ -1149,7 +1151,7 @@ static const char arg_handle_env_system_set_doc_python[] =
 
 static int arg_handle_env_system_set(int argc, const char **argv, void *UNUSED(data))
 {
-  /* "--env-system-scripts" --> "BLENDER_SYSTEM_SCRIPTS" */
+  /* `--env-system-scripts` -> `BLENDER_SYSTEM_SCRIPTS` */
 
   char env[64] = "BLENDER";
   char *ch_dst = env + 7;           /* skip BLENDER */
