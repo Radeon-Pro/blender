@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
+#define __AMD_LOCAL
 #include "kernel/kernel_compat_opencl.h"
 #include "kernel/split/kernel_split_common.h"
 #include "kernel/split/kernel_shadow_blocked_ao.h"
 
 #define KERNEL_NAME shadow_blocked_ao
 #include "kernel/kernels/opencl/kernel_split_function.h"
+#undef __AMD_LOCAL
 #undef KERNEL_NAME
 

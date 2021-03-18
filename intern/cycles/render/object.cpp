@@ -860,7 +860,8 @@ void ObjectManager::apply_static_transforms(DeviceScene *dscene, Scene *scene, P
       geometry_users[object->geometry] = 1;
     else
       it->second++;
-  }
+  }  // finds how many time an object is used in the scene --> instancing, mapping geometry to the
+     // number of appearance in the scene
 
   if (progress.get_cancel())
     return;
@@ -875,6 +876,7 @@ void ObjectManager::apply_static_transforms(DeviceScene *dscene, Scene *scene, P
      * Could be solved by moving reference counter to Geometry.
      */
     Geometry *geom = object->geometry;
+    //geom->num_instances = geometry_users[geom];
     bool apply = (geometry_users[geom] == 1) && !geom->has_surface_bssrdf &&
                  !geom->has_true_displacement();
 

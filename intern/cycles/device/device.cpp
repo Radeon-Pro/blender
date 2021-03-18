@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "bvh/bvh2.h"
+#include "bvh/bvh_amd.h"
 
 #include "device/device.h"
 #include "device/device_intern.h"
@@ -368,16 +369,24 @@ void Device::draw_pixels(device_memory &rgba,
 
 void Device::build_bvh(BVH *bvh, Progress &progress, bool refit)
 {
-  assert(bvh->params.bvh_layout == BVH_LAYOUT_BVH2);
+  assert((bvh->params.bvh_layout == BVH_LAYOUT_BVH2) || (bvh->params.bvh_layout == BVH_LAYOUT_AMD_RT));
 
-  BVH2 *const bvh2 = static_cast<BVH2 *>(bvh);
-  if (refit) {
-    bvh2->refit(progress);
+  if (bvh->params.bvh_layout == BVH_LAYOUT_BVH2) {
+    BVH2 *const bvh2 = static_cast<BVH2 *>(bvh);
+    if (refit) {
+      bvh2->refit(progress);
+    }
+    else {
+      bvh2->build(progress, &stats);
+    }
   }
-  else {
-    bvh2->build(progress, &stats);
+  else {// temproray fix,
+      // should make a new device class
+      // should implement refit
+    BVHAMD *const bvh_amd = static_cast<BVHAMD *>(bvh);
+    bvh_amd->build(progress, &stats);
   }
-}
+  }
 
 Device *Device::create(DeviceInfo &info, Stats &stats, Profiler &profiler, bool background)
 {

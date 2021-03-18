@@ -78,7 +78,7 @@ class BVHBuild {
                       int level,
                       BVHSpatialStorage *storage);
   BVHNode *build_node(const BVHObjectBinning &range, int level);
-  BVHNode *create_leaf_node(const BVHRange &range, const vector<BVHReference> &references);
+  virtual BVHNode *create_leaf_node(const BVHRange &range, const vector<BVHReference> &references);
   BVHNode *create_object_leaf_nodes(const BVHReference *ref, int start, int num);
 
   bool range_within_max_leaf_size(const BVHRange &range,

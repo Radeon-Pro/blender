@@ -56,6 +56,7 @@ DeviceScene::DeviceScene(Device *device)
       prim_index(device, "__prim_index", MEM_GLOBAL),
       prim_object(device, "__prim_object", MEM_GLOBAL),
       prim_time(device, "__prim_time", MEM_GLOBAL),
+      bvh_amd(device, "__bvh_amd", MEM_GLOBAL),
       tri_shader(device, "__tri_shader", MEM_GLOBAL),
       tri_vnormal(device, "__tri_vnormal", MEM_GLOBAL),
       tri_vindex(device, "__tri_vindex", MEM_GLOBAL),
@@ -496,6 +497,33 @@ DeviceRequestedFeatures Scene::get_requested_device_features()
     requested_features.use_denoising = true;
     requested_features.use_shadow_tricks = true;
   }
+
+   map<Geometry *, int> geometry_users;
+  int max_num_instances = 0;
+  bool has_sss = false;
+  foreach (Object *object, objects) {
+    Geometry *geom = object->get_geometry();
+    map<Geometry *, int>::iterator it = geometry_users.find(geom);
+
+    has_sss |= geom->has_surface_bssrdf;
+    if (it == geometry_users.end())
+      geometry_users[geom] = 1;
+    else {
+      requested_features.has_instances = true;
+      it->second++;
+      max_num_instances = max(max_num_instances, it->second);
+    }
+  }
+  if (max_num_instances < 15 && max_num_instances > 0)
+    requested_features.make_single_level = true;
+  if (has_sss) {
+    requested_features.make_single_level = false;
+    requested_features.has_instances = true;
+  }
+
+  has_instanced_geometry = requested_features.has_instances;
+  make_single_level = requested_features.make_single_level;
+
 
   return requested_features;
 }

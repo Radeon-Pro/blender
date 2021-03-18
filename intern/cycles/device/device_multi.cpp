@@ -248,7 +248,8 @@ class MultiDevice : public Device {
   void build_bvh(BVH *bvh, Progress &progress, bool refit) override
   {
     /* Try to build and share a single acceleration structure, if possible */
-    if (bvh->params.bvh_layout == BVH_LAYOUT_BVH2 || bvh->params.bvh_layout == BVH_LAYOUT_EMBREE) {
+    if (bvh->params.bvh_layout == BVH_LAYOUT_BVH2 || bvh->params.bvh_layout == BVH_LAYOUT_EMBREE ||
+        bvh->params.bvh_layout == BVH_LAYOUT_AMD_RT) {
       devices.back().device->build_bvh(bvh, progress, refit);
       return;
     }

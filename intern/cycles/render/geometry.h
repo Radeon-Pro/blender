@@ -95,6 +95,8 @@ class Geometry : public Node {
   /* Index into scene->geometry (only valid during update) */
   size_t index;
 
+  //int num_instances;
+
   /* Constructor/Destructor */
   explicit Geometry(const NodeType *node_type, const Type type);
   virtual ~Geometry();

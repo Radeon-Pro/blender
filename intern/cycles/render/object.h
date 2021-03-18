@@ -106,6 +106,11 @@ class Object : public Node {
   /* Compute step size from attributes, shaders, transforms. */
   float compute_volume_step_size() const;
 
+  int get_object_index() const
+  {
+    return index;
+  }
+
  protected:
   /* Specifies the position of the object in scene->objects and
    * in the device vectors. Gets set in device_update. */

@@ -104,13 +104,19 @@ class BVHParams {
     /* todo: see if splitting up primitive cost to be separate for triangles
      * and curves can help. so far in tests it doesn't help, but why? */
     sah_node_cost = 1.0f;
-    sah_primitive_cost = 1.0f;
+    sah_primitive_cost = 1.0f;//100.0f;
 
     min_leaf_size = 1;
+#ifdef WITH_AMD_RT_HWI
+    max_triangle_leaf_size = 1;
+    max_motion_triangle_leaf_size = 1;
+    max_motion_curve_leaf_size = 1;
+#else
     max_triangle_leaf_size = 8;
     max_motion_triangle_leaf_size = 8;
-    max_curve_leaf_size = 1;
     max_motion_curve_leaf_size = 4;
+#endif
+    max_curve_leaf_size = 1;
 
     top_level = false;
     bvh_layout = BVH_LAYOUT_BVH2;

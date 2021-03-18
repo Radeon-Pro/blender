@@ -81,6 +81,7 @@ class DeviceScene {
   device_vector<int> prim_index;
   device_vector<int> prim_object;
   device_vector<float2> prim_time;
+  device_vector<char> bvh_amd;
 
   /* mesh */
   device_vector<uint> tri_shader;
@@ -267,6 +268,9 @@ class Scene : public NodeOwner {
 
   /* mutex must be locked manually by callers */
   thread_mutex mutex;
+  
+  bool has_instanced_geometry;
+  bool make_single_level;
 
   /* scene update statistics */
   SceneUpdateStats *update_stats;

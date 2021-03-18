@@ -65,6 +65,8 @@ struct PackedBVH {
   array<int> prim_object;
   /* Time range of BVH primitive. */
   array<float2> prim_time;
+//#ifdef WITH_AMD_RT_HWI
+  array<char> abvh_nodes;
 
   /* index of the root node. */
   int root_index;

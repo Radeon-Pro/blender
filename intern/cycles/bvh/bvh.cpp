@@ -21,6 +21,7 @@
 #include "bvh/bvh_embree.h"
 #include "bvh/bvh_multi.h"
 #include "bvh/bvh_optix.h"
+#include "bvh/bvh_amd.h"
 
 #include "util/util_logging.h"
 #include "util/util_progress.h"
@@ -43,6 +44,8 @@ const char *bvh_layout_name(BVHLayout layout)
     case BVH_LAYOUT_MULTI_OPTIX:
     case BVH_LAYOUT_MULTI_OPTIX_EMBREE:
       return "MULTI";
+    case BVH_LAYOUT_AMD_RT:
+      return "AMD";
     case BVH_LAYOUT_ALL:
       return "ALL";
   }
@@ -106,6 +109,12 @@ BVH *BVH::create(const BVHParams &params,
     case BVH_LAYOUT_MULTI_OPTIX:
     case BVH_LAYOUT_MULTI_OPTIX_EMBREE:
       return new BVHMulti(params, geometry, objects);
+    case BVH_LAYOUT_AMD_RT:
+#ifdef WITH_AMD_RT_HWI
+      return new BVHAMD(params, geometry, objects);//, device);
+#else
+        break;
+#endif
     case BVH_LAYOUT_NONE:
     case BVH_LAYOUT_ALL:
       break;

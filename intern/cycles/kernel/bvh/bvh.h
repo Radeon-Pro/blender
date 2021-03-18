@@ -35,6 +35,9 @@ CCL_NAMESPACE_BEGIN
 
 #ifndef __KERNEL_OPTIX__
 
+#  ifdef __AMD_RT_HWI__
+#  include "kernel/bvh/amd_bvh_common.h"
+#  endif
 /* Regular BVH traversal */
 
 #  include "kernel/bvh/bvh_nodes.h"

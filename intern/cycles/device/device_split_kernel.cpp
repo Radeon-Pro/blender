@@ -260,13 +260,141 @@ bool DeviceSplitKernel::path_trace(DeviceTask &task,
     bool activeRaysAvailable = true;
     double cancel_time = DBL_MAX;
 
+    LARGE_INTEGER StartingTime, EndingTime, ElapsedMicroseconds;
+    LARGE_INTEGER Frequency;
+
     while (activeRaysAvailable) {
       /* Do path-iteration in host [Enqueue Path-iteration kernels. */
       for (int PathIter = 0; PathIter < 16; PathIter++) {
+          #if 0
         ENQUEUE_SPLIT_KERNEL(scene_intersect, global_size, local_size);
+        QueryPerformanceFrequency(&Frequency);
+        QueryPerformanceCounter(&StartingTime);
+        ENQUEUE_SPLIT_KERNEL(lamp_emission, global_size, local_size);
+        QueryPerformanceCounter(&EndingTime);
+        ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+        ElapsedMicroseconds.QuadPart *= 1000000;
+        ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+        printf("L\t%lu\t", (unsigned long)ElapsedMicroseconds.QuadPart);
+        
+        if (kernel_do_volume) {
+          QueryPerformanceFrequency(&Frequency);
+          QueryPerformanceCounter(&StartingTime);
+          ENQUEUE_SPLIT_KERNEL(do_volume, global_size, local_size);
+          QueryPerformanceCounter(&EndingTime);
+          ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+          ElapsedMicroseconds.QuadPart *= 1000000;
+          ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+          //printf("V\t%lu\t", (unsigned long)ElapsedMicroseconds.QuadPart);
+        }
+        ENQUEUE_SPLIT_KERNEL(queue_enqueue, global_size, local_size);
+    
+        QueryPerformanceFrequency(&Frequency);
+        QueryPerformanceCounter(&StartingTime);
+        ENQUEUE_SPLIT_KERNEL(indirect_background, global_size, local_size);
+        QueryPerformanceCounter(&EndingTime);
+        ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+        ElapsedMicroseconds.QuadPart *= 1000000;
+        ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+        printf("BK\t%lu\t", (unsigned long)ElapsedMicroseconds.QuadPart);
+        QueryPerformanceFrequency(&Frequency);
+        QueryPerformanceCounter(&StartingTime);
+        ENQUEUE_SPLIT_KERNEL(shader_setup, global_size, local_size);
+        QueryPerformanceCounter(&EndingTime);
+        ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+        ElapsedMicroseconds.QuadPart *= 1000000;
+        ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+        printf("SET\t%lu\t", (unsigned long)ElapsedMicroseconds.QuadPart);        
+        QueryPerformanceFrequency(&Frequency);
+        QueryPerformanceCounter(&StartingTime);
+        ENQUEUE_SPLIT_KERNEL(shader_sort, global_size, local_size);
+        QueryPerformanceCounter(&EndingTime);
+        ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+        ElapsedMicroseconds.QuadPart *= 1000000;
+        ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+        printf("sort\t%lu\t", (unsigned long)ElapsedMicroseconds.QuadPart);
+        QueryPerformanceFrequency(&Frequency);
+        QueryPerformanceCounter(&StartingTime);
+        ENQUEUE_SPLIT_KERNEL(shader_eval, global_size, local_size);
+        QueryPerformanceCounter(&EndingTime);
+        ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+        ElapsedMicroseconds.QuadPart *= 1000000;
+        ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+        printf("eval\t%lu\t", (unsigned long)ElapsedMicroseconds.QuadPart);
+        QueryPerformanceFrequency(&Frequency);
+        QueryPerformanceCounter(&StartingTime);
+        ENQUEUE_SPLIT_KERNEL(
+            holdout_emission_blurring_pathtermination_ao, global_size, local_size);
+        QueryPerformanceCounter(&EndingTime);
+        ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+        ElapsedMicroseconds.QuadPart *= 1000000;
+        ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+        printf("Hold\t%lu\t", (unsigned long)ElapsedMicroseconds.QuadPart);
+        ENQUEUE_SPLIT_KERNEL(subsurface_scatter, global_size, local_size);
+        ENQUEUE_SPLIT_KERNEL(queue_enqueue, global_size, local_size);
+
+
+
+        QueryPerformanceFrequency(&Frequency);
+        QueryPerformanceCounter(&StartingTime);
+        ENQUEUE_SPLIT_KERNEL(direct_lighting, global_size, local_size);
+        QueryPerformanceCounter(&EndingTime);
+        ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+        ElapsedMicroseconds.QuadPart *= 1000000;
+        ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+        printf("DL\t%lu\t", (unsigned long)ElapsedMicroseconds.QuadPart);
+        ENQUEUE_SPLIT_KERNEL(shadow_blocked_ao, global_size, local_size);
+        ENQUEUE_SPLIT_KERNEL(shadow_blocked_dl, global_size, local_size);
+        ENQUEUE_SPLIT_KERNEL(enqueue_inactive, global_size, local_size);
+
+        
+        
+        
+        
+        QueryPerformanceFrequency(&Frequency);
+        QueryPerformanceCounter(&StartingTime);
+        ENQUEUE_SPLIT_KERNEL(next_iteration_setup, global_size, local_size);
+         QueryPerformanceCounter(&EndingTime);
+         ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+         ElapsedMicroseconds.QuadPart *= 1000000;
+         ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+         printf("next\t%lu\t", (unsigned long)ElapsedMicroseconds.QuadPart);
+        
+        
+        QueryPerformanceFrequency(&Frequency);
+        QueryPerformanceCounter(&StartingTime);
+        ENQUEUE_SPLIT_KERNEL(indirect_subsurface, global_size, local_size);
+        QueryPerformanceCounter(&EndingTime);
+        ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+        ElapsedMicroseconds.QuadPart *= 1000000;
+        ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+        printf("indirect_sub\t%lu\t", (unsigned long)ElapsedMicroseconds.QuadPart);
+        ENQUEUE_SPLIT_KERNEL(queue_enqueue, global_size, local_size);
+
+        
+
+        QueryPerformanceFrequency(&Frequency);
+        QueryPerformanceCounter(&StartingTime);
+        ENQUEUE_SPLIT_KERNEL(buffer_update, global_size, local_size);
+        QueryPerformanceCounter(&EndingTime);
+        ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+        ElapsedMicroseconds.QuadPart *= 1000000;
+        ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+        printf("buffer_update\t%lu\t\n", (unsigned long)ElapsedMicroseconds.QuadPart);
+                
+        
+        
+        #else
+        
+
+        //scoped_timer timer(&tile.buffers->render_time);
+        ENQUEUE_SPLIT_KERNEL(scene_intersect, global_size, local_size);
+        //printf("%lu\n", (unsigned long)(timer.get_time() * 1000000));
         ENQUEUE_SPLIT_KERNEL(lamp_emission, global_size, local_size);
         if (kernel_do_volume) {
+        
           ENQUEUE_SPLIT_KERNEL(do_volume, global_size, local_size);
+        
         }
         ENQUEUE_SPLIT_KERNEL(queue_enqueue, global_size, local_size);
         ENQUEUE_SPLIT_KERNEL(indirect_background, global_size, local_size);
@@ -275,17 +403,25 @@ bool DeviceSplitKernel::path_trace(DeviceTask &task,
         ENQUEUE_SPLIT_KERNEL(shader_eval, global_size, local_size);
         ENQUEUE_SPLIT_KERNEL(
             holdout_emission_blurring_pathtermination_ao, global_size, local_size);
+        
         ENQUEUE_SPLIT_KERNEL(subsurface_scatter, global_size, local_size);
+
+        
         ENQUEUE_SPLIT_KERNEL(queue_enqueue, global_size, local_size);
         ENQUEUE_SPLIT_KERNEL(direct_lighting, global_size, local_size);
+
         ENQUEUE_SPLIT_KERNEL(shadow_blocked_ao, global_size, local_size);
+
+        //scoped_timer timer(&tile.buffers->render_time);
         ENQUEUE_SPLIT_KERNEL(shadow_blocked_dl, global_size, local_size);
+        //printf("%lu\n", (unsigned long)(timer.get_time() * 1000000));
+
         ENQUEUE_SPLIT_KERNEL(enqueue_inactive, global_size, local_size);
         ENQUEUE_SPLIT_KERNEL(next_iteration_setup, global_size, local_size);
         ENQUEUE_SPLIT_KERNEL(indirect_subsurface, global_size, local_size);
         ENQUEUE_SPLIT_KERNEL(queue_enqueue, global_size, local_size);
         ENQUEUE_SPLIT_KERNEL(buffer_update, global_size, local_size);
-
+          #endif
         if (task.get_cancel() && cancel_time == DBL_MAX) {
           /* Wait up to twice as many seconds for current samples to finish
            * to avoid artifacts in render result from ending too soon.

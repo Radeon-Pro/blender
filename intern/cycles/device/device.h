@@ -181,6 +181,10 @@ class DeviceRequestedFeatures {
   /* Use background lights */
   bool use_background_light;
 
+  bool has_instances;
+
+  bool make_single_level;
+
   DeviceRequestedFeatures()
   {
     /* TODO(sergey): Find more meaningful defaults. */
@@ -202,6 +206,8 @@ class DeviceRequestedFeatures {
     use_shader_raytrace = false;
     use_true_displacement = false;
     use_background_light = false;
+    has_instances = false; //bvh single level by design
+    make_single_level = false; // single level because low number of instances
   }
 
   bool modified(const DeviceRequestedFeatures &requested_features)
@@ -275,6 +281,12 @@ class DeviceRequestedFeatures {
     }
     if (!use_shader_raytrace) {
       build_options += " -D__NO_SHADER_RAYTRACE__";
+    }
+    if (!has_instances) {
+      build_options += " -D_SINGLE_LEVEL_BVH_";
+    }
+    if (make_single_level) {
+      build_options += " -D_QUASI_SINGLE_BVH_";
     }
     return build_options;
   }

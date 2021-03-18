@@ -16,6 +16,7 @@
 
 #include "bvh/bvh.h"
 #include "bvh/bvh2.h"
+#include "bvh/bvh_amd.h"
 
 #include "device/device.h"
 
@@ -75,6 +76,7 @@ Geometry::Geometry(const NodeType *node_type, const Type type)
   attr_map_offset = 0;
   optix_prim_offset = 0;
   prim_offset = 0;
+  //num_instances = 0;
 }
 
 Geometry::~Geometry()
@@ -165,6 +167,7 @@ bool Geometry::need_build_bvh(BVHLayout layout) const
 {
   return is_instanced() || layout == BVH_LAYOUT_OPTIX || layout == BVH_LAYOUT_MULTI_OPTIX ||
          layout == BVH_LAYOUT_MULTI_OPTIX_EMBREE;
+  //return is_instanced();
 }
 
 bool Geometry::is_instanced() const
@@ -174,6 +177,7 @@ bool Geometry::is_instanced() const
    * While it might be not very optimal for ray traversal, it avoids having
    * duplicated BVH in the memory, saving quite some space.
    */
+  //return num_instances > 15 || has_surface_bssrdf;
   return !transform_applied || has_surface_bssrdf;
 }
 
@@ -199,6 +203,7 @@ void Geometry::compute_bvh(
 
   const BVHLayout bvh_layout = BVHParams::best_bvh_layout(params->bvh_layout,
                                                           device->get_bvh_layout_mask());
+
   if (need_build_bvh(bvh_layout)) {
     string msg = "Updating Geometry BVH ";
     if (name.empty())
@@ -1247,11 +1252,16 @@ void GeometryManager::device_update_bvh(Device *device,
     return;
   }
 
-  const bool has_bvh2_layout = (bparams.bvh_layout == BVH_LAYOUT_BVH2);
+ /* const*/ bool has_bvh2_layout = (bparams.bvh_layout == BVH_LAYOUT_BVH2);
+  const bool has_bvh_rt_layout = (bparams.bvh_layout == BVH_LAYOUT_AMD_RT);
 
   PackedBVH pack;
   if (has_bvh2_layout) {
     pack = std::move(static_cast<BVH2 *>(bvh)->pack);
+  }
+  else if (has_bvh_rt_layout) {
+    pack = std::move(static_cast<BVHAMD *>(bvh)->pack);
+    has_bvh2_layout = true; //HACK - SHOULD CORRECT
   }
   else {
     progress.set_status("Updating Scene BVH", "Packing BVH primitives");
@@ -1311,6 +1321,7 @@ void GeometryManager::device_update_bvh(Device *device,
       const pair<int, uint> &info = geometry_to_object_info[geom];
       pool.push(function_bind(
           &Geometry::pack_primitives, geom, &pack, info.first, info.second, pack_all));
+      //geom->pack_primitives(&pack, info.first, info.second, pack_all);
     }
     pool.wait_work();
   }
@@ -1321,6 +1332,10 @@ void GeometryManager::device_update_bvh(Device *device,
   /* When using BVH2, we always have to copy/update the data as its layout is dependent on the
    * BVH's leaf nodes which may be different when the objects or vertices move. */
 
+  if (pack.abvh_nodes.size()) {
+    dscene->bvh_amd.steal_data(pack.abvh_nodes);
+    dscene->bvh_amd.copy_to_device();
+  }
   if (pack.nodes.size()) {
     dscene->bvh_nodes.steal_data(pack.nodes);
     dscene->bvh_nodes.copy_to_device();
@@ -1569,6 +1584,7 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
     scene->bvh = nullptr;
 
     dscene->bvh_nodes.tag_realloc();
+    dscene->bvh_amd.tag_realloc();
     dscene->bvh_leaf_nodes.tag_realloc();
     dscene->object_node.tag_realloc();
     dscene->prim_tri_verts.tag_realloc();
@@ -2020,6 +2036,7 @@ void GeometryManager::device_update(Device *device,
   update_flags = UPDATE_NONE;
 
   dscene->bvh_nodes.clear_modified();
+  dscene->bvh_amd.clear_modified();
   dscene->bvh_leaf_nodes.clear_modified();
   dscene->object_node.clear_modified();
   dscene->prim_tri_verts.clear_modified();
@@ -2047,6 +2064,7 @@ void GeometryManager::device_update(Device *device,
 void GeometryManager::device_free(Device *device, DeviceScene *dscene, bool force_free)
 {
   dscene->bvh_nodes.free_if_need_realloc(force_free);
+  dscene->bvh_amd.free_if_need_realloc(force_free);
   dscene->bvh_leaf_nodes.free_if_need_realloc(force_free);
   dscene->object_node.free_if_need_realloc(force_free);
   dscene->prim_tri_verts.free_if_need_realloc(force_free);

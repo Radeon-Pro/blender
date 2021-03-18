@@ -286,9 +286,13 @@ if(WITH_OPENSUBDIV)
   )
 endif()
 
+if(WITH_CYCLES_DEVICE_AMD_HW)
+  add_definitions(-DWITH_AMD_RT_HWI)
+endif()
 if(WITH_CYCLES_STANDALONE)
   set(WITH_CYCLES_DEVICE_OPENCL TRUE)
   set(WITH_CYCLES_DEVICE_CUDA TRUE)
+  set(WITH_CYCLES_DEVICE_AMD_HW TRUE)
   # Experimental and unfinished.
   set(WITH_CYCLES_NETWORK FALSE)
 endif()

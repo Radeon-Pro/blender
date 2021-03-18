@@ -49,7 +49,9 @@ static const string SPLIT_BUNDLE_KERNELS =
     "data_init "
     "path_init "
     "state_buffer_size "
+#  ifndef WITH_AMD_RT_HWI
     "scene_intersect "
+#  endif
     "queue_enqueue "
     "shader_setup "
     "shader_sort "
@@ -267,6 +269,9 @@ void OpenCLDevice::OpenCLSplitPrograms::load_kernels(
     ADD_SPLIT_KERNEL_PROGRAM(holdout_emission_blurring_pathtermination_ao);
     ADD_SPLIT_KERNEL_PROGRAM(shadow_blocked_dl);
     ADD_SPLIT_KERNEL_PROGRAM(shadow_blocked_ao);
+#  ifdef WITH_AMD_RT_HWI
+    ADD_SPLIT_KERNEL_PROGRAM(scene_intersect);
+#  endif
 
     /* Quick kernels bundled in a single program to reduce overhead of starting
      * Blender processes. */
@@ -279,7 +284,9 @@ void OpenCLDevice::OpenCLSplitPrograms::load_kernels(
     ADD_SPLIT_KERNEL_BUNDLE_PROGRAM(data_init);
     ADD_SPLIT_KERNEL_BUNDLE_PROGRAM(state_buffer_size);
     ADD_SPLIT_KERNEL_BUNDLE_PROGRAM(path_init);
+#  ifndef WITH_AMD_RT_HWI
     ADD_SPLIT_KERNEL_BUNDLE_PROGRAM(scene_intersect);
+#  endif
     ADD_SPLIT_KERNEL_BUNDLE_PROGRAM(queue_enqueue);
     ADD_SPLIT_KERNEL_BUNDLE_PROGRAM(shader_setup);
     ADD_SPLIT_KERNEL_BUNDLE_PROGRAM(shader_sort);
@@ -379,6 +386,7 @@ class OpenCLSplitKernelFunction : public SplitKernelFunction {
       device->opencl_error(message);
       return false;
     }
+    //clFinish(device->cqCommandQueue);// just for debugging
 
     return true;
   }
@@ -681,6 +689,18 @@ OpenCLDevice::OpenCLDevice(DeviceInfo &info, Stats &stats, Profiler &profiler, b
   if (use_preview_kernels) {
     load_preview_kernels();
   }
+
+#  ifdef WITH_AMD_RT_HWI
+
+  amd_hw_rt = false;
+
+  if (platform_name == "AMD Accelerated Parallel Processing") {
+    char device_string[256];
+    clGetDeviceInfo(cdDevice, CL_DEVICE_NAME, sizeof(device_string), &device_string, NULL);
+    if (strcmp(device_string, "gfx1030") == 0)
+      amd_hw_rt = true;
+  }
+#  endif
 }
 
 OpenCLDevice::~OpenCLDevice()
@@ -1357,13 +1377,15 @@ void OpenCLDevice::thread_run(DeviceTask &task)
     /* Allocate buffer for kernel globals */
     device_only_memory<KernelGlobalsDummy> kgbuffer(this, "kernel_globals");
     kgbuffer.alloc_to_device(1);
-
+    /*LARGE_INTEGER StartingTime, EndingTime, ElapsedMicroseconds;
+    LARGE_INTEGER Frequency;*/
     /* Keep rendering tiles until done. */
     while (task.acquire_tile(this, tile, task.tile_types)) {
       if (tile.task == RenderTile::PATH_TRACE) {
         assert(tile.task == RenderTile::PATH_TRACE);
-        scoped_timer timer(&tile.buffers->render_time);
-
+        //scoped_timer timer(&tile.buffers->render_time);
+        /*QueryPerformanceFrequency(&Frequency);
+        QueryPerformanceCounter(&StartingTime);*/
         split_kernel->path_trace(task, tile, kgbuffer, *const_mem_map["__data"]);
 
         /* Complete kernel execution before release tile. */
@@ -1376,6 +1398,11 @@ void OpenCLDevice::thread_run(DeviceTask &task)
          * next tile.
          */
         clFinish(cqCommandQueue);
+        /*QueryPerformanceCounter(&EndingTime);
+        ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+        ElapsedMicroseconds.QuadPart *= 1000000;
+        ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+        printf("T\t%lu\n", (unsigned long)ElapsedMicroseconds.QuadPart);*/
       }
       else if (tile.task == RenderTile::BAKE) {
         bake(task, tile);
@@ -2037,6 +2064,14 @@ string OpenCLDevice::kernel_build_options(const string *debug_src)
 
 #  ifdef WITH_NANOVDB
   build_options += "-DWITH_NANOVDB ";
+#  endif
+
+#  ifdef WITH_AMD_RT_HWI
+
+  if (amd_hw_rt) {
+    build_options += "-D__AMD_RT_HWI__ ";
+  }
+
 #  endif
 
   return build_options;

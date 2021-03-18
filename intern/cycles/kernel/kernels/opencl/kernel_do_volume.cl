@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#define __AMD_LOCAL
 
 #include "kernel/kernel_compat_opencl.h"
 #include "kernel/split/kernel_split_common.h"
@@ -20,5 +21,6 @@
 
 #define KERNEL_NAME do_volume
 #include "kernel/kernels/opencl/kernel_split_function.h"
+#undef __AMD_LOCAL
 #undef KERNEL_NAME
 

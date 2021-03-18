@@ -20,7 +20,9 @@
 #include "kernel/kernels/opencl/kernel_data_init.cl"
 #include "kernel/kernels/opencl/kernel_path_init.cl"
 #include "kernel/kernels/opencl/kernel_state_buffer_size.cl"
-#include "kernel/kernels/opencl/kernel_scene_intersect.cl"
+#ifndef __AMD_RT_HWI__
+//#include "kernel/kernels/opencl/kernel_scene_intersect.cl"
+#endif
 #include "kernel/kernels/opencl/kernel_queue_enqueue.cl"
 #include "kernel/kernels/opencl/kernel_shader_setup.cl"
 #include "kernel/kernels/opencl/kernel_shader_sort.cl"

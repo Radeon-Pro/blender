@@ -35,6 +35,11 @@ void MemoryManager::DeviceBuffer::update_device_memory(OpenCLDevice *device)
   /* Calculate total size and remove any freed. */
   size_t total_size = 0;
 
+#  ifdef WITH_AMD_RT_HWI
+  size_t alighnment = 256;
+#  else
+  size_t alighnment = 16;
+#  endif
   for (int i = allocations.size() - 1; i >= 0; i--) {
     Allocation *allocation = allocations[i];
 
@@ -51,7 +56,7 @@ void MemoryManager::DeviceBuffer::update_device_memory(OpenCLDevice *device)
     }
 
     /* Get actual size for allocation. */
-    size_t alloc_size = align_up(allocation->mem->memory_size(), 16);
+    size_t alloc_size = align_up(allocation->mem->memory_size(), alighnment);
 
     if (allocation->size != alloc_size) {
       /* Allocation is either new or resized. */

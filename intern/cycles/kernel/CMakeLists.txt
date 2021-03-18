@@ -87,6 +87,11 @@ set(SRC_OPTIX_KERNELS
 )
 
 set(SRC_BVH_HEADERS
+  bvh/amd_bvh_common.h
+  bvh/amd_bvh_shadow_all.h
+  bvh/amd_bvh_local.h
+  bvh/amd_bvh_traversal.h
+  bvh/amd_bvh_volume.h
   bvh/bvh.h
   bvh/bvh_nodes.h
   bvh/bvh_shadow_all.h
